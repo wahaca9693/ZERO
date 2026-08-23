@@ -10,7 +10,7 @@ type FirebaseClaims = JWTPayload & {
 };
 
 function getProjectId() {
-  return String(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || "").trim();
+  return String(process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "").trim();
 }
 
 export type VerifiedFirebaseEmail = {
@@ -25,11 +25,17 @@ export async function verifyFirebaseEmailIdToken(idToken: string, requireVerifie
   if (!projectId) throw new Error("FIREBASE_NOT_CONFIGURED");
   if (!idToken || idToken.length > 10000) throw new Error("FIREBASE_TOKEN_INVALID");
 
-  const { payload } = await jwtVerify(idToken, firebaseKeys, {
-    algorithms: ["RS256"],
-    audience: projectId,
-    issuer: `https://securetoken.google.com/${projectId}`,
-  });
+  let payload: JWTPayload;
+  try {
+    ({ payload } = await jwtVerify(idToken, firebaseKeys, {
+      algorithms: ["RS256"],
+      audience: projectId,
+      issuer: `https://securetoken.google.com/${projectId}`,
+    }));
+  } catch (error) {
+    console.error("Firebase ID token verification failed", { errorName: error instanceof Error ? error.name : "UnknownError" });
+    throw new Error("FIREBASE_EMAIL_TOKEN_INVALID");
+  }
   const claims = payload as FirebaseClaims;
   const uid = String(claims.user_id || claims.sub || "").trim();
   const email = String(claims.email || "").trim().toLowerCase();

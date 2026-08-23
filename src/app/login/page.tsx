@@ -41,8 +41,11 @@ function firebaseErrorMessage(error: unknown) {
   if (code === "auth/invalid-email") return "البريد الإلكتروني غير صالح";
   if (code === "auth/weak-password") return "كلمة المرور يجب أن تكون 8 أحرف على الأقل وتحتوي على حروف وأرقام";
   if (code === "auth/operation-not-allowed") return "تسجيل البريد عبر Firebase غير مفعّل بعد في إعدادات المشروع.";
+  if (["auth/unauthorized-continue-uri", "auth/invalid-continue-uri", "auth/missing-continue-uri"].includes(code)) return "رابط تأكيد البريد غير مصرح به. أضف نطاق الموقع إلى Authorized domains في Firebase.";
+  if (["auth/network-request-failed", "auth/internal-error"].includes(code)) return "تعذر الاتصال بخدمة Firebase. تحقق من الاتصال وحاول مرة أخرى.";
   if (code === "auth/too-many-requests") return "محاولات كثيرة جدًا. انتظر قليلًا ثم حاول مرة أخرى.";
-  if (error instanceof Error && error.message === "FIREBASE_NOT_CONFIGURED") return "تسجيل البريد عبر Firebase غير مهيأ حاليًا.";
+  if (error instanceof Error && error.message === "FIREBASE_NOT_CONFIGURED") return "إعدادات Firebase غير مكتملة في Vercel. أضف متغيرات Firebase Web ثم أعد النشر.";
+  if (error instanceof Error && error.message === "TURNSTILE_NOT_CONFIGURED") return "إعدادات التحقق الأمني غير مكتملة في Vercel. أضف مفتاح Turnstile للواجهة والخادم.";
   return error instanceof Error ? error.message : "تعذر إتمام العملية حاليًا.";
 }
 
@@ -169,6 +172,10 @@ export default function LoginPage() {
     setLoading(true);
     try {
       if (!isLogin) {
+        const configResponse = await fetch("/api/auth/firebase/config-status", { cache: "no-store" });
+        const configData = await configResponse.json() as { firebaseConfigured?: boolean; turnstileConfigured?: boolean; turnstileRequired?: boolean };
+        if (!configData.firebaseConfigured) throw new Error("FIREBASE_NOT_CONFIGURED");
+        if (configData.turnstileRequired && !configData.turnstileConfigured) throw new Error("TURNSTILE_NOT_CONFIGURED");
         const firebaseUser = await firebaseCreateEmailUser(email.trim().toLowerCase(), password);
         try {
           const idToken = await firebaseUser.getIdToken();
