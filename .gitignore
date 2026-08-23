@@ -1,28 +1,56 @@
-node_modules
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
 .DS_Store
-.tmp
-tmp
-dist
-coverage
+*.pem
+
+# debug
 npm-debug.log*
-yarn.lock
-google-generated-credentials.json
-_START_PACKAGE
-.env
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.default.json
-.idea
-nodelinter.config.json
-**/package-lock.json
-packages/**/.turbo
-.turbo
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
 *.tsbuildinfo
-*.swp
-CHANGELOG-*.md
-*.mdx
-build-storybook.log
-*.junit.xml
-junit.xml
-test-results.json
-*.0x
+next-env.d.ts
+
+# misc
+cookies.txt
+database.db
+
+# local delivery archives and generated captures
+/deliverables/
+/artifacts/
+/shots/
+/*.zip
+*.tar.gz.enc
+*-package-password*.txt
+
+# local branding uploads
+/public/uploads/

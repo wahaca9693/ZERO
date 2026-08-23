@@ -1,72 +1,180 @@
-![Banner image](https://user-images.githubusercontent.com/10284570/173569848-c624317f-42b1-45a6-ab09-f0ea3c247648.png)
+# smmnine — Royal Gold SMM Platform
 
-# n8n - Secure Workflow Automation for Technical Teams
+منصة SMM احترافية لإدارة خدمات التسويق عبر وسائل التواصل الاجتماعي، مع لوحة مستخدم ولوحة إدارة ومزودين خارجيين ومحفظة وAPI v2 وقاعدة Turso/libSQL.
 
-n8n is a workflow automation platform that gives technical teams the flexibility of code with the speed of no-code. With 400+ integrations, native AI capabilities, and a fair-code license, n8n lets you build powerful automations while maintaining full control over your data and deployments.
+> **الحالة الحالية:** النسخة الموثقة مبنية بنجاح ومرفوعة إلى فرع النشر في المستودع الأساسي والنسخة الاحتياطية. الإيداعات المشفرة تعرض العملة والشبكة والعنوان الرسمي من Turso، بينما الاعتماد الآلي للرصيد يبقى معطلًا حتى اكتمال NOWPayments IPN بمفاتيح جديدة غير مكشوفة.
 
-![n8n.io - Screenshot](https://raw.githubusercontent.com/n8n-io/n8n/master/assets/n8n-screenshot-readme.png)
+## روابط سريعة
 
-## Key Capabilities
+| المورد | الرابط |
+|---|---|
+| المستودع الأساسي وفرع النشر | [smmnine-landing](https://github.com/wahaca9693/smmnine-landing/tree/deploy/royal-gold-crypto-turso-20260817) |
+| النسخة الاحتياطية وفرع النشر | [smmnine-backup](https://github.com/wahaca9693/smmnine-backup/tree/deploy/royal-gold-crypto-turso-20260817) |
+| التوثيق الكامل | [`docs/PROJECT_COMPLETE.md`](docs/PROJECT_COMPLETE.md) |
+| معرض الصور | [`docs/store-gallery/README.md`](docs/store-gallery/README.md) |
 
-- **Code When You Need It**: Write JavaScript/Python, add npm packages, or use the visual interface
-- **AI-Native Platform**: Build AI agent workflows based on LangChain with your own data and models
-- **Full Control**: Self-host with our fair-code license or use our [cloud offering](https://app.n8n.cloud/login)
-- **Enterprise-Ready**: Advanced permissions, SSO, and air-gapped deployments
-- **Active Community**: 400+ integrations and 900+ ready-to-use [templates](https://n8n.io/workflows)
+## أبرز ما تم تطويره
 
-## Quick Start
+تم تحويل المشروع إلى منصة متكاملة بتصميم **Royal Gold** ثابت ومتدرج، متجاوب مع عرض 390px، ويدعم العربية والإنجليزية. كما تم توحيد كتالوج الخدمات، ربط الخدمات بمزودين خارجيين، إضافة API v2 لكل مستخدم، وربط الخصم بمحفظة صاحب مفتاح API بدل محفظة الإدارة.
 
-Try n8n instantly with [npx](https://docs.n8n.io/hosting/installation/npm/) (requires [Node.js](https://nodejs.org/en/)):
+تم إصلاح مسار إنشاء الطلبات، توحيد منطق المزودين، منع التخزين المؤقت لمسارات API الحساسة، تعطيل المسارات القديمة بإجابة HTTP 410، وإضافة مزامنة حية للرصيد والخدمات والثيم. كما تم إعداد طرق الدفع في Turso حسب الزوج الكامل **العملة + الشبكة** لمنع إرسال العملة إلى شبكة خاطئة.
 
+## التقنيات
+
+- Next.js 16 App Router.
+- React وTypeScript.
+- Tailwind CSS v4 ومتغيرات CSS مخصصة.
+- Turso/libSQL عبر `@libsql/client`.
+- `iron-session` للجلسات.
+- `bcryptjs` لتخزين كلمات المرور بصيغة hash.
+- `lucide-react` للأيقونات.
+- pnpm لإدارة الحزم.
+- Vercel كهدف للنشر السحابي.
+
+## الوظائف الأساسية
+
+### المستخدم
+
+يستطيع المستخدم تسجيل الدخول، تصفح الخدمات، إنشاء طلب، متابعة الطلبات، إدارة الرصيد والمعاملات، فتح تذكرة دعم، اختيار اللغة، وقراءة شروط الاستخدام. صفحة الإيداع تعرض اسم العملة والشبكة والعنوان الرسمي المخزن في Turso بدل الاعتماد على قيمة يرسلها المتصفح.
+
+### API v2
+
+يملك كل مستخدم مفتاح API طويلًا وعشوائيًا مرتبطًا بمحفظته. يسمح المفتاح باستدعاء الرصيد والخدمات وإنشاء الطلبات وقراءة حالة الطلبات. كل طلب API يُحاسب على محفظة المستخدم صاحب المفتاح، ويُرفض عند عدم كفاية الرصيد قبل استدعاء مزود خارجي.
+
+لا ينبغي وضع مفتاح API في JavaScript عام أو مشاركته مع أي شخص؛ يجب تخزينه في الخادم الخاص بالموقع أو Bot الذي يستخدمه.
+
+### الإدارة والمزودون
+
+تتيح لوحة الإدارة إضافة مزود خارجي وإدارته في قسم موحد، استعراض خدماته، اختيار ما يظهر للمستخدم، تعديل اسم الخدمة، تعديل السعر وهامش الربح، إخفاء الخدمة أو إظهارها، وربطها بخدمة المزود. تُقرأ التغييرات من Turso وتنعكس على واجهة المستخدم وAPI v2.
+
+### العملات والشبكات
+
+تم إعداد دعم إعدادات الوجهات التالية في Turso:
+
+| العملة | الشبكة |
+|---|---|
+| BTC | Bitcoin SegWit |
+| USDT | Tron TRC20 |
+| USDT | Ethereum ERC20 |
+| USDT | Polygon |
+| USDT | BNB Smart Chain BEP20 |
+| USDT | X Layer |
+| BNB | BNB Smart Chain BEP20 |
+
+العنوان العام لا يُحفظ داخل Git أو README. يُقرأ من جدول طرق الدفع وقت التشغيل، وتتحقق المسارات الخلفية من تطابق العملة والشبكة مع الإعداد الرسمي.
+
+## مسارات مهمة
+
+| المسار | الغرض |
+|---|---|
+| `/login` | تسجيل الدخول |
+| `/orders/new` | إنشاء طلب من الكتالوج |
+| `/orders` | الطلبات |
+| `/deposit` | الإيداع والعملة والشبكة والعنوان |
+| `/transactions` | سجل المعاملات |
+| `/api-access` | مفتاح API ودليل الاستخدام |
+| `/dashboard/tickets` | الدعم |
+| `/admin/providers` | مزودو الخدمات |
+| `/admin/crypto` | مراجعة الإيداعات |
+| `/api/v2` | API المستخدمين |
+| `/api/orders/create` | إنشاء طلب من الواجهة |
+| `/api/services` | كتالوج الخدمات |
+| `/api/deposit` | إعدادات الإيداع |
+
+المسارات القديمة التالية متوقفة وتعيد HTTP 410: `/api/create-order`، `/api/balance`، `/api/order-status`، `/api/cancel`، `/api/refill`.
+
+## التصميم والتجاوب
+
+يعتمد التصميم على أسطح ذهبية وداكنة ثابتة، وليس على بطاقات شفافة أو زجاجية. أُعيد ضبط أحجام الأزرار، المسافات، التنقل، النوافذ المنبثقة، حالات التحميل، بطاقات الخدمات، صفحة تسجيل الدخول، وصفحات الدعم والإيداع لتكون مفهومة على الهاتف أولًا.
+
+توجد لقطات الشاشة والمواد المرئية في [`docs/store-gallery/`](docs/store-gallery/). تشمل الصور شاشات الدخول، API، الخدمات، الإيداع، لوحة الإدارة، المزودين، الدعم، اللغات، والتنقل على عرض 390px.
+
+## الأمان وحالة الدفع
+
+لا تضع أسرار Turso أو NOWPayments أو مزودي الخدمات داخل Git. استخدم متغيرات البيئة السرية في Vercel فقط. يجب تدوير مفاتيح NOWPayments التي ظهرت سابقًا قبل الإنتاج.
+
+حاليًا، الاعتماد الآلي للإيداعات معطل عمدًا حتى يكتمل webhook موقّع من NOWPayments. هذا يمنع إضافة رصيد بلا إشعار موثوق. لا تنفذ طلبات خدمات حقيقية أو تحويلات حقيقية أثناء الاختبار.
+
+## التشغيل المحلي
+
+ثبّت الحزم ثم شغّل فحص TypeScript والبناء:
+
+```bash
+pnpm install
+pnpm exec tsc --noEmit
+pnpm build
+pnpm start -- -p 3000
 ```
-npx n8n
+
+للاختبارات المحلية فقط يمكن استخدام قاعدة محلية عند ضبط `USE_LOCAL_DB=1`. بيئة Vercel يجب أن تستخدم Turso عبر متغيرات سرية:
+
+```text
+TURSO_DATABASE_URL=<secret environment variable>
+TURSO_AUTH_TOKEN=<secret environment variable>
+SESSION_SECRET=<secret environment variable>
 ```
 
-Or deploy with [Docker](https://docs.n8n.io/hosting/installation/docker/):
+لا تُضمّن القيم الحقيقية في README أو GitHub أو صور الشاشة.
 
+## الاختبارات المنفذة
+
+| الاختبار | النتيجة |
+|---|---|
+| TypeScript | ناجح |
+| Next.js build | ناجح |
+| إنشاء الطلب دون جلسة | HTTP 401 |
+| API v2 دون مفتاح | HTTP 401 |
+| المسارات القديمة | HTTP 410 |
+| قراءة الإيداع من Turso | ناجحة |
+| حماية عدم التخزين المؤقت | مفعلة لمسارات API |
+| QR للشبكات | تم فك الرموز مباشرة والتحقق من الصيغة |
+| طلبات مزود حقيقية | لم تُنفذ أثناء الاختبار |
+
+## فرع النشر والـcommit
+
+الفرع الحالي:
+
+```text
+deploy/royal-gold-crypto-turso-20260817
 ```
-docker volume create n8n_data
-docker run -it --rm --name n8n -p 5678:5678 -v n8n_data:/home/node/.n8n docker.n8n.io/n8nio/n8n
+
+الـcommit الأساسي المرفوع:
+
+```text
+04d4e0d2b17ad538d99ff0fbe315cc9ecdb2978b
 ```
 
-Access the editor at http://localhost:5678
+سيُسجل توثيق الصور وREADME في commit توثيق جديد على الفرع نفسه، ثم يُرفع إلى المستودعين مع استبعاد الملفات الحساسة.
 
-## Resources
+## التوثيق الكامل
 
-- 📚 [Documentation](https://docs.n8n.io)
-- 🔧 [400+ Integrations](https://n8n.io/integrations)
-- 💡 [Example Workflows](https://n8n.io/workflows)
-- 🤖 [AI & LangChain Guide](https://docs.n8n.io/langchain/)
-- 👥 [Community Forum](https://community.n8n.io)
-- 📖 [Community Tutorials](https://community.n8n.io/c/tutorials/28)
+للتفاصيل الخاصة بالبنية والجداول والملفات ومسارات API والمزامنة والدفع والنشر، راجع [`docs/PROJECT_COMPLETE.md`](docs/PROJECT_COMPLETE.md).
 
-## Support
 
-Need help? Our community forum is the place to get support and connect with other users:
-[community.n8n.io](https://community.n8n.io)
+## التشغيل الفوري للمشروع
 
-## License
+بعد فك حزمة التسليم وضبط ملف `.env.local`، نفّذ الأوامر التالية من جذر المشروع:
 
-n8n is [fair-code](https://faircode.io) distributed under the [Sustainable Use License](https://github.com/n8n-io/n8n/blob/master/LICENSE.md) and [n8n Enterprise License](https://github.com/n8n-io/n8n/blob/master/LICENSE_EE.md).
+```bash
+pnpm install
+pnpm run doctor
+pnpm run db:init
+pnpm run build
+pnpm run start:checked
+```
 
-- **Source Available**: Always visible source code
-- **Self-Hostable**: Deploy anywhere
-- **Extensible**: Add your own nodes and functionality
+يفحص `pnpm run doctor` وجود Node.js واتصال Turso ووضع قاعدة البيانات دون طباعة الأسرار. ويبدأ `pnpm run start:checked` نسخة الإنتاج على المنفذ `3000` بعد نجاح الفحص. للتحقق من أن الخادم يستجيب فعليًا، افتح `http://localhost:3000/api/health` أو نفّذ:
 
-[Enterprise licenses](mailto:license@n8n.io) available for additional features and support.
+```bash
+pnpm run healthcheck
+```
 
-Additional information about the license model can be found in the [docs](https://docs.n8n.io/reference/license/).
+لن ينفّذ الفحص أي طلب خدمة مدفوع أو تحويل مالي. وتبقى بوابة NOWPayments خارج الجاهزية الإنتاجية إلى أن تُضاف مفاتيح جديدة وIPN webhook موثوق بعد تدوير المفاتيح القديمة.
 
-## Contributing
+## نطاق التسليم الكامل
 
-Found a bug 🐛 or have a feature idea ✨? Check our [Contributing Guide](https://github.com/n8n-io/n8n/blob/master/CONTRIBUTING.md) to get started.
+تتضمن الحزمة الكود الكامل للواجهة الأمامية والخلفية، المصادقة والجلسات، لوحة المستخدم ولوحة الإدارة، الخدمات والطلبات والمزودين، API v2، الإيداع، Turso/libSQL، المزامنة الحية، التصميم Royal Gold، صفحات اللغة والدعم، وملفات التشغيل والفحص. أما الأسرار الفعلية وبيانات قاعدة Turso الحية فتُحفظ خارج GitHub وتُمرّر عبر متغيرات البيئة الآمنة عند التشغيل.
 
-## Join the Team
+للتفاصيل التشغيلية الكاملة راجع [`DEPLOYMENT_HANDOFF_AR.md`](DEPLOYMENT_HANDOFF_AR.md) و[`docs/PROJECT_COMPLETE.md`](docs/PROJECT_COMPLETE.md).
 
-Want to shape the future of automation? Check out our [job posts](https://n8n.io/careers) and join our team!
-
-## What does n8n mean?
-
-**Short answer:** It means "nodemation" and is pronounced as n-eight-n.
-
-**Long answer:** "I get that question quite often (more often than I expected) so I decided it is probably best to answer it here. While looking for a good name for the project with a free domain I realized very quickly that all the good ones I could think of were already taken. So, in the end, I chose nodemation. 'node-' in the sense that it uses a Node-View and that it uses Node.js and '-mation' for 'automation' which is what the project is supposed to help with. However, I did not like how long the name was and I could not imagine writing something that long every time in the CLI. That is when I then ended up on 'n8n'." - **Jan Oberhauser, Founder and CEO, n8n.io**
+> ملاحظة: نجاح البناء والتشغيل المحلي لا يعني تفعيل الدفع الحقيقي تلقائيًا؛ ذلك يتطلب مفاتيح NOWPayments جديدة وتهيئة IPN webhook في بيئة الاستضافة.
