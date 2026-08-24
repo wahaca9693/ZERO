@@ -63,6 +63,13 @@ const schemaStatements = [
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )`,
+  `CREATE TABLE IF NOT EXISTS user_favorite_services (
+    user_id INTEGER NOT NULL,
+    service_id TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, service_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )`,
   `CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -443,6 +450,7 @@ const indexStatements = [
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_provider_services_provider_remote_unique ON provider_services(provider_id, remote_service_id)`,
   `CREATE INDEX IF NOT EXISTS idx_provider_services_active ON provider_services(is_active, provider_id)`,
   `CREATE INDEX IF NOT EXISTS idx_pending_registrations_email ON pending_registrations(email)`,
+  `CREATE INDEX IF NOT EXISTS idx_user_favorite_services_user ON user_favorite_services(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_pending_registrations_firebase_uid ON pending_registrations(firebase_uid)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_firebase_uid ON users(firebase_uid) WHERE firebase_uid IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS idx_pending_registrations_expires ON pending_registrations(expires_at)`,

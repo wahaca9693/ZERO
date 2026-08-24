@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Modal } from "../components/Modal";
-import { Search, Layers, ChevronDown, ChevronUp, ShoppingCart, ShieldCheck, Sparkles, Zap, Infinity, RefreshCw, Wallet, type LucideIcon } from "lucide-react";
+import { Search, Layers, ChevronDown, ChevronUp, ShoppingCart, ShieldCheck, Sparkles, Zap, Infinity, RefreshCw, Wallet, Heart, Share2, Check, type LucideIcon } from "lucide-react";
 import { PlatformIcon } from "../components/Icons";
 import Link from "next/link";
 import { useLiveRefresh } from "../components/useLiveRefresh";
@@ -90,6 +91,10 @@ function formatServiceRate(value: unknown): string {
   return Number.isFinite(amount) ? amount.toFixed(5) : "0.00000";
 }
 
+function serviceCardElementId(serviceId: string): string {
+  return `service-card-${serviceId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+}
+
 function formatServiceQuantity(value: unknown, locale: string): string {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return "—";
@@ -114,6 +119,9 @@ function detectGuarantees(name: string, t: (key: string) => string): { isGuarant
 
 export default function ServicesPage() {
   const { locale, t } = useLanguage();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const sharedServiceId = searchParams.get("service")?.trim() || "";
   const initialUser = useInitialAuthUser();
   const [accountUser, setAccountUser] = useState<ClientAuthUser | null>(initialUser);
   const [accountAuthState, setAccountAuthState] = useState<"checking" | "authenticated" | "guest">(initialUser ? "authenticated" : "checking");
@@ -128,6 +136,9 @@ export default function ServicesPage() {
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [visibleCategoryCounts, setVisibleCategoryCounts] = useState<Record<string, number>>({});
+  const [favoriteServiceIds, setFavoriteServiceIds] = useState<Set<string>>(() => new Set());
+  const [favoriteLoadingId, setFavoriteLoadingId] = useState<string | null>(null);
+  const [shareFeedback, setShareFeedback] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [refreshingBalance, setRefreshingBalance] = useState(false);
 
@@ -143,6 +154,7 @@ export default function ServicesPage() {
       if (response.status === 401) {
         setAccountUser(null);
         setAccountAuthState("guest");
+        setFavoriteServiceIds(new Set());
         return;
       }
       if (!response.ok) return;
@@ -158,6 +170,73 @@ export default function ServicesPage() {
     }
   }, []);
 
+  const loadFavorites = useCallback(async () => {
+    if (accountAuthState !== "authenticated") return;
+    try {
+      const response = await fetch("/api/user/favorites", { credentials: "include", cache: "no-store" });
+      if (!response.ok) return;
+      const data = await response.json() as { favoriteServiceIds?: unknown };
+      const ids = Array.isArray(data.favoriteServiceIds) ? data.favoriteServiceIds.filter((id): id is string => typeof id === "string") : [];
+      setFavoriteServiceIds(new Set(ids));
+    } catch {
+      // المفضلة اختيارية ولا تمنع عرض الكتالوج عند تعذر الطلب.
+    }
+  }, [accountAuthState]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void loadFavorites(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadFavorites]);
+
+  const toggleFavorite = useCallback(async (serviceId: string) => {
+    if (accountAuthState !== "authenticated") {
+      const next = `${window.location.pathname}${window.location.search}`;
+      router.push(`/login?next=${encodeURIComponent(next)}`);
+      return;
+    }
+    const favorite = favoriteServiceIds.has(serviceId);
+    setFavoriteLoadingId(serviceId);
+    try {
+      const response = await fetch("/api/user/favorites", {
+        method: favorite ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ serviceId }),
+      });
+      if (response.status === 401) {
+        const next = `${window.location.pathname}${window.location.search}`;
+        router.push(`/login?next=${encodeURIComponent(next)}`);
+        return;
+      }
+      if (!response.ok) return;
+      setFavoriteServiceIds((current) => {
+        const next = new Set(current);
+        if (favorite) next.delete(serviceId); else next.add(serviceId);
+        return next;
+      });
+    } finally {
+      setFavoriteLoadingId(null);
+    }
+  }, [accountAuthState, favoriteServiceIds, router]);
+
+  const copyServiceLink = useCallback(async (serviceId: string) => {
+    const url = new URL(`/services?service=${encodeURIComponent(serviceId)}`, window.location.origin).toString();
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = url;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+    setShareFeedback(serviceId);
+    window.setTimeout(() => setShareFeedback((current) => current === serviceId ? null : current), 1800);
+  }, []);
+
   useEffect(() => {
     let active = true;
 
@@ -167,6 +246,7 @@ export default function ServicesPage() {
       if (detail && Object.prototype.hasOwnProperty.call(detail, "user")) {
         setAccountUser(detail.user || null);
         setAccountAuthState(detail.user ? "authenticated" : "guest");
+        if (!detail.user) setFavoriteServiceIds(new Set());
       }
     };
 
@@ -219,6 +299,21 @@ export default function ServicesPage() {
     const timer = window.setTimeout(() => { void loadServices(); }, 0);
     return () => window.clearTimeout(timer);
   }, [loadServices]);
+
+  useEffect(() => {
+    if (!sharedServiceId || services.length === 0) return;
+    const service = services.find((item) => String(item.service) === sharedServiceId);
+    if (!service) return;
+    const category = safeServiceText(service.category || "عام");
+    const timer = window.setTimeout(() => {
+      setSelectedPlatform("all");
+      setSelectedType("all");
+      setSearch("");
+      setExpandedCategories((current) => ({ ...current, [category]: true }));
+      window.setTimeout(() => document.getElementById(serviceCardElementId(sharedServiceId))?.scrollIntoView({ behavior: "smooth", block: "center" }), 120);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [services, sharedServiceId]);
 
   useEffect(() => {
     let active = true;
@@ -610,7 +705,7 @@ export default function ServicesPage() {
                     {expanded && (
                       <div id={categoryElementId} className="border-t border-[var(--color-primary)]/10">
                         {items.slice(0, visibleCategoryCounts[category] || SERVICE_RENDER_CHUNK).map((s) => (
-                          <div key={s.service} className="p-4 border-b border-[var(--color-primary)]/8 last:border-0">
+                          <div id={serviceCardElementId(String(s.service))} key={s.service} className="p-4 border-b border-[var(--color-primary)]/8 last:border-0">
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2">
@@ -635,13 +730,36 @@ export default function ServicesPage() {
                                 <div className="text-xs text-zinc-500">{t("service.per1000")}</div>
                               </div>
                             </div>
-                            <Link
-                              href={`/orders/new?service=${s.service}`}
-                              className="btn-glow-pulse mt-3 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] py-2 text-sm font-bold text-white transition hover:brightness-110"
-                            >
-                              <ShoppingCart size={16} />
-                              {t("service.orderThis")}
-                            </Link>
+                            <div className="mt-3 flex items-center gap-2">
+                              <Link
+                                href={`/orders/new?service=${encodeURIComponent(String(s.service))}`}
+                                className="btn-glow-pulse flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] py-2 text-sm font-bold text-white transition hover:brightness-110"
+                              >
+                                <ShoppingCart size={16} />
+                                {t("service.orderThis")}
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => void toggleFavorite(String(s.service))}
+                                disabled={favoriteLoadingId === String(s.service)}
+                                aria-pressed={favoriteServiceIds.has(String(s.service))}
+                                aria-label={favoriteServiceIds.has(String(s.service)) ? "إزالة الخدمة من المفضلة" : "حفظ الخدمة في المفضلة"}
+                                title={favoriteServiceIds.has(String(s.service)) ? "إزالة من المفضلة" : "حفظ في المفضلة"}
+                                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition disabled:opacity-50 ${favoriteServiceIds.has(String(s.service)) ? "border-rose-400/50 bg-rose-500/15 text-rose-300" : "border-[var(--color-border)] bg-[var(--color-surface)] text-zinc-400 hover:border-rose-400/50 hover:text-rose-300"}`}
+                              >
+                                <Heart size={17} fill={favoriteServiceIds.has(String(s.service)) ? "currentColor" : "none"} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void copyServiceLink(String(s.service))}
+                                aria-label="نسخ رابط الخدمة"
+                                title="نسخ رابط الخدمة"
+                                className={`flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-black transition ${shareFeedback === String(s.service) ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300" : "border-[var(--color-border)] bg-[var(--color-surface)] text-zinc-400 hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary-light)]"}`}
+                              >
+                                {shareFeedback === String(s.service) ? <Check size={16} /> : <Share2 size={16} />}
+                                <span className="hidden sm:inline">{shareFeedback === String(s.service) ? "تم النسخ" : "مشاركة"}</span>
+                              </button>
+                            </div>
                           </div>
                         ))}
                         {items.length > (visibleCategoryCounts[category] || SERVICE_RENDER_CHUNK) && <button type="button" onClick={() => setVisibleCategoryCounts((previous) => ({ ...previous, [category]: Math.min(items.length, (previous[category] || SERVICE_RENDER_CHUNK) + SERVICE_RENDER_CHUNK) }))} className="w-full border-t border-[var(--color-primary)]/10 px-4 py-3 text-xs font-black text-[var(--color-primary-light)] transition hover:bg-[var(--color-primary)]/5">عرض المزيد ({items.length - (visibleCategoryCounts[category] || SERVICE_RENDER_CHUNK)} متبقية)</button>}
