@@ -1,7 +1,6 @@
 import { getIronSession, SessionOptions } from "iron-session";
 import { cookies } from "next/headers";
 import { db, initDb } from "./db";
-import { emailVerificationRequired } from "./email-verification";
 
 export interface SessionData {
   userId?: number;
@@ -82,10 +81,6 @@ export async function requireAuth() {
     }
     if (Number(user.is_banned)) {
       throw new Error("Account banned");
-    }
-
-    if (emailVerificationRequired() && !Number(user.email_verified)) {
-      throw new Error("EMAIL_VERIFICATION_REQUIRED");
     }
 
     // لا يُفرض 2FA إلا إذا فعّله المستخدم من إعدادات الأمان صراحةً.

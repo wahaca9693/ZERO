@@ -24,9 +24,6 @@ export async function GET() {
       if (error instanceof Error && error.message === "2FA_REQUIRED") {
         return NextResponse.json({ error: "2FA_REQUIRED", requires2fa: true }, { status: 403 });
       }
-      if (error instanceof Error && error.message === "EMAIL_VERIFICATION_REQUIRED") {
-        return NextResponse.json({ error: "EMAIL_VERIFICATION_REQUIRED", requiresEmailVerification: true }, { status: 403 });
-      }
       throw error;
     }
     const userId = session.userId!;

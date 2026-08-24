@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db, initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { createEmailVerificationToken, emailVerificationConfigured, emailVerificationExpiry, emailVerificationRequired, hashEmailVerificationToken, sendEmailVerification } from "@/lib/email-verification";
 
 export async function PATCH(request: Request) {
   try {
@@ -30,24 +29,16 @@ export async function PATCH(request: Request) {
     const duplicate = await db.execute({ sql: "SELECT id FROM users WHERE (username = ? COLLATE NOCASE OR (email IS NOT NULL AND email = ? COLLATE NOCASE)) AND id != ? LIMIT 1", args: [username, email || null, session.userId] });
     if (duplicate.rows.length) return NextResponse.json({ error: "اسم المستخدم أو البريد مستخدم بالفعل" }, { status: 409 });
 
-    const oldEmail = String(current.email || "").trim().toLowerCase();
-    const emailChanged = Boolean(email) && email !== oldEmail;
-    const mustVerifyEmail = emailChanged && emailVerificationRequired();
-    if (mustVerifyEmail && !emailVerificationConfigured()) return NextResponse.json({ error: "تحقق البريد غير مهيأ حاليًا" }, { status: 503 });
-
-    const token = mustVerifyEmail ? createEmailVerificationToken() : "";
-    const nextEmailVerified = mustVerifyEmail ? 0 : Number(current.email_verified) === 1 ? 1 : (emailChanged ? 1 : 0);
     await db.execute({
-      sql: "UPDATE users SET username = ?, email = ?, email_verified = ?, email_verification_token_hash = ?, email_verification_expires_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-      args: [username, email || null, nextEmailVerified, token ? hashEmailVerificationToken(token) : null, token ? emailVerificationExpiry() : null, session.userId],
+      sql: "UPDATE users SET username = ?, email = ?, email_verified = 1, email_verification_token_hash = NULL, email_verification_expires_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      args: [username, email || null, session.userId],
     });
 
     session.username = username;
-    session.emailVerified = nextEmailVerified === 1;
+    session.emailVerified = true;
     await session.save();
 
-    if (mustVerifyEmail && token) await sendEmailVerification({ to: email, username, token });
-    return NextResponse.json({ ok: true, requiresEmailVerification: mustVerifyEmail, user: { username, email: email || null } });
+    return NextResponse.json({ ok: true, user: { username, email: email || null } });
   } catch (error) {
     console.error("Profile update error", { errorName: error instanceof Error ? error.name : "UnknownError" });
     return NextResponse.json({ error: "تعذر تحديث بيانات الحساب حاليًا" }, { status: 500 });

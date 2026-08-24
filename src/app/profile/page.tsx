@@ -52,12 +52,12 @@ export default function ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(profileForm),
       });
-      const data = await response.json().catch(() => ({})) as { error?: string; user?: { username: string; email: string | null }; requiresEmailVerification?: boolean };
+      const data = await response.json().catch(() => ({})) as { error?: string; user?: { username: string; email: string | null } };
       if (!response.ok) throw new Error(data.error || "تعذر حفظ بيانات الحساب");
       if (user && data.user) setUser({ ...user, username: data.user.username, email: data.user.email || "" });
       setProfileForm((current) => ({ ...current, currentPassword: "", securityCode: "" }));
       setEditing(false);
-      setEditMessage(data.requiresEmailVerification ? "تم حفظ البيانات. تحقق من البريد الجديد لإكمال التغيير." : "تم حفظ بيانات الحساب بنجاح.");
+      setEditMessage("تم حفظ بيانات الحساب بنجاح.");
     } catch (error) {
       setEditMessage(error instanceof Error ? error.message : "تعذر حفظ بيانات الحساب");
     } finally {
