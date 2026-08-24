@@ -31,8 +31,7 @@ async function withTimeout<T>(promise: Promise<T>, fallback: T, timeoutMs: numbe
   }
 }
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 60;
 
 function json(data: unknown, init?: ResponseInit) {
   return NextResponse.json(data, {
