@@ -7,6 +7,7 @@ import DashboardLayout from "../../components/DashboardLayout";
 import { useLiveRefresh } from "../../components/useLiveRefresh";
 import { ShoppingCart, Check, AlertCircle, ChevronDown, ChevronUp, Calculator, Wallet, AlertTriangle } from "lucide-react";
 import { Modal } from "../../components/Modal";
+import { normalizeServiceLimits } from "@/lib/service-limits";
 
 type ServiceItem = {
   service: number | string;
@@ -85,6 +86,12 @@ export default function NewOrderContent() {
   );
   const serviceCategory = selectedService?.category || "";
   const isInstagram = serviceCategory.startsWith("Instagram");
+  const selectedLimits = useMemo(
+    () => selectedService ? normalizeServiceLimits(selectedService.min, selectedService.max) : null,
+    [selectedService],
+  );
+  const quantityNumber = Number(quantity);
+  const quantityValid = Boolean(selectedLimits && Number.isInteger(quantityNumber) && quantityNumber >= selectedLimits.min && quantityNumber <= selectedLimits.max);
   useEffect(() => {
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
@@ -116,9 +123,9 @@ export default function NewOrderContent() {
 
 
   const estimatedCost = useMemo(() => {
-    if (!selectedService || !quantity) return 0;
-    return (Number(selectedService.rate) * Number(quantity)) / 1000;
-  }, [selectedService, quantity]);
+    if (!selectedService || !quantity || !Number.isFinite(quantityNumber)) return 0;
+    return (Number(selectedService.rate) * quantityNumber) / 1000;
+  }, [selectedService, quantity, quantityNumber]);
 
   const filteredServices = useMemo(() => {
     let list = services;
@@ -136,7 +143,10 @@ export default function NewOrderContent() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedService || !link || !quantity) return;
+    if (!selectedService || !selectedLimits || !link || !quantity || !quantityValid) {
+      setResult({ error: selectedLimits ? `الكمية يجب أن تكون بين ${selectedLimits.min} و ${selectedLimits.max}` : "حدود هذه الخدمة غير صالحة حاليًا؛ اختر خدمة أخرى أو حدّث الكتالوج" });
+      return;
+    }
     if (showRequirementsModal) return;
     setConfirmDialog(true);
   };
@@ -274,18 +284,23 @@ export default function NewOrderContent() {
             <label className="mb-1 block text-sm font-bold text-zinc-400">الكمية</label>
             <input
               type="number"
+              min={selectedLimits?.min}
+              max={selectedLimits?.max}
+              step={1}
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-white outline-none focus:border-[var(--color-primary)]"
-              placeholder={selectedService ? `من ${selectedService.min} إلى ${selectedService.max}` : "1000"}
+              placeholder={selectedLimits ? `من ${selectedLimits.min} إلى ${selectedLimits.max}` : "1000"}
               required
             />
+            {selectedService && !selectedLimits && <p className="mt-1 text-xs font-bold text-red-400">هذه الخدمة لا تحتوي على حدود كمية صالحة حاليًا، ولا يمكن إرسال طلب عليها.</p>}
+            {selectedService && quantity && selectedLimits && !quantityValid && <p className="mt-1 text-xs font-bold text-red-400">الكمية يجب أن تكون رقمًا صحيحًا بين {selectedLimits.min} و{selectedLimits.max}.</p>}
           </div>
 
           {/* Quick quantity buttons */}
           {selectedService && (
             <div className="flex flex-wrap gap-2">
-              {presetQuantities.map((q) => (
+              {presetQuantities.filter((q) => selectedLimits && q >= selectedLimits.min && q <= selectedLimits.max).map((q) => (
                 <button
                   key={q}
                   type="button"
@@ -334,7 +349,7 @@ export default function NewOrderContent() {
 
           <button
             type="submit"
-            disabled={loading || !serviceId || !link || !quantity || balance < estimatedCost}
+            disabled={loading || !serviceId || !link || !quantity || !selectedLimits || !quantityValid || balance < estimatedCost}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] py-3.5 font-black text-white shadow-lg shadow-orange-500/25 disabled:opacity-50"
           >
             {loading ? "جاري الإرسال..." : <><ShoppingCart size={20} /> متابعة الطلب</>}

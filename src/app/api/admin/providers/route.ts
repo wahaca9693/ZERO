@@ -10,6 +10,7 @@ import {
   translateServiceName,
   translationFingerprint,
 } from "@/lib/service-translation";
+import { parseProviderServiceLimits } from "@/lib/service-limits";
 
 const DEFAULT_MARKUP = 0; // لا يوجد هامش تلقائي؛ يفعّله الأدمن صراحةً فقط
 type JsonObject = Record<string, unknown>;
@@ -47,7 +48,7 @@ function resolveSellRate(rate: number, markup: number, pricingMode?: string, man
   return applyMarkup(rate, markup);
 }
 
-function serviceTextFromProvider(raw: JsonObject, remoteId: string): {
+function serviceTextFromProvider(raw: JsonObject, remoteId: string, limits: { min: number; max: number }): {
   name: string;
   description: string;
   nameAr: string;
@@ -56,8 +57,8 @@ function serviceTextFromProvider(raw: JsonObject, remoteId: string): {
 } {
   const category = String(raw.category ?? "").trim() || "عام";
   const type = String(raw.type ?? "").trim() || "service";
-  const min = Number(raw.min) || 0;
-  const max = Number(raw.max) || 0;
+  const min = limits.min;
+  const max = limits.max;
   const rawName = String(raw.name ?? raw.title ?? "").trim();
   // بعض المزودين يرسلون service ID في name أو نصًا فارغًا؛ لا نعرض المعرّف opaque للمستخدم.
   const name = isOpaqueServiceText(rawName)
@@ -402,18 +403,32 @@ export async function POST(request: Request) {
       const existing = new Map((existingRows.rows as JsonObject[]).map((row) => [String(row.remote_service_id), row]));
       let inserted = 0;
       let updated = 0;
+      let invalid = 0;
       const syncStatements: Array<{ sql: string; args: Array<string | number | null> }> = [];
       for (const s of services) {
-        const remoteId = String(s.service);
+        const remoteId = String(s.service ?? "").trim();
+        const limits = parseProviderServiceLimits(s);
         const current = existing.get(remoteId);
-        const costRate = Number(s.rate) || 0;
-        const text = serviceTextFromProvider(s, remoteId);
+        if (!remoteId || !limits) {
+          invalid++;
+          if (current) {
+            syncStatements.push({ sql: "UPDATE provider_services SET is_active=0, updated_at=CURRENT_TIMESTAMP WHERE id=?", args: [Number(current.id)] });
+          }
+          continue;
+        }
+        const costRate = Number(s.rate);
+        if (!Number.isFinite(costRate) || costRate < 0) {
+          invalid++;
+          if (current) syncStatements.push({ sql: "UPDATE provider_services SET is_active=0, updated_at=CURRENT_TIMESTAMP WHERE id=?", args: [Number(current.id)] });
+          continue;
+        }
+        const text = serviceTextFromProvider(s, remoteId, limits);
         if (current) {
           const keepManual = String(current.pricing_mode || "markup") === "manual";
           const sellRate = keepManual ? Number(current.manual_price ?? current.sell_rate ?? costRate) : (pricingEnabled ? applyMarkup(costRate, markupPct) : roundRate(costRate));
           syncStatements.push({
             sql: `UPDATE provider_services SET name=?, description=?, name_ar=?, description_ar=?, translation_source_hash=?, category=?, rate=?, min=?, max=?, type=?, sell_rate=?, is_new=0, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-            args: [text.name, text.description, text.nameAr, text.descriptionAr, text.sourceHash, String(s.category || ""), costRate, Number(s.min) || 0, Number(s.max) || 0, String(s.type || ""), sellRate, Number(current.id)],
+            args: [text.name, text.description, text.nameAr, text.descriptionAr, text.sourceHash, String(s.category || ""), costRate, limits.min, limits.max, String(s.type || ""), sellRate, Number(current.id)],
           });
           updated++;
         } else {
@@ -435,7 +450,7 @@ export async function POST(request: Request) {
         args: [balance, Number(providerId)],
       });
       invalidateProviderCatalogCaches();
-      return NextResponse.json({ imported: inserted, updated, balance, services: inserted + updated });
+      return NextResponse.json({ imported: inserted, updated, invalid, balance, services: inserted + updated });
     }
 
     // 3) تحديث رصيد جميع المزودين من سيرفراتهم الخارجية
@@ -515,6 +530,8 @@ export async function POST(request: Request) {
           target = services.find((s: JsonObject) => String(s.service) === String(remote_service_id)) ?? null;
         }
         if (!target) return NextResponse.json({ error: "الخدمة غير موجودة لدى المزود" }, { status: 404 });
+        const limits = parseProviderServiceLimits(target);
+        if (!limits) return NextResponse.json({ error: "الخدمة لا تحتوي على حد أدنى وأقصى صالحين من المزود" }, { status: 422 });
         const pricing = parsePricing(body, DEFAULT_MARKUP);
         const markupPct = pricing.markup;
         const costRate = Number.isFinite(Number(target.rate)) ? Number(target.rate) : 0;
@@ -529,7 +546,7 @@ export async function POST(request: Request) {
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,1)`,
           args: [
             Number(providerId), String(target.service), String(target.name || ""), String(target.category || ""),
-            costRate, Number(target.min) || 0, Number(target.max) || 0, String(target.type || ""),
+            costRate, limits.min, limits.max, String(target.type || ""),
             markupPct, sellRate, pricing.mode, pricing.manual,
           ],
         });
@@ -585,9 +602,8 @@ export async function POST(request: Request) {
           continue;
         }
         const rate = Number(raw?.rate);
-        const min = Number(raw?.min);
-        const max = Number(raw?.max);
-        if (!Number.isFinite(rate) || rate < 0) {
+        const limits = parseProviderServiceLimits(raw as JsonObject);
+        if (!Number.isFinite(rate) || rate < 0 || !limits) {
           invalid++;
           continue;
         }
@@ -598,7 +614,7 @@ export async function POST(request: Request) {
         statements.push({
           sql: `INSERT INTO provider_services (provider_id, remote_service_id, name, category, rate, min, max, type, markup_percent, sell_rate, pricing_mode, manual_price, is_active, is_new)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,1)`,
-          args: [providerId, remoteId, name, category, rate, Number.isFinite(min) ? min : 0, Number.isFinite(max) ? max : 0, type, markupPct, sellRate, pricing.mode, pricing.manual],
+          args: [providerId, remoteId, name, category, rate, limits.min, limits.max, type, markupPct, sellRate, pricing.mode, pricing.manual],
         });
         insertedRemoteIds.push(remoteId);
         knownIds.add(remoteId);

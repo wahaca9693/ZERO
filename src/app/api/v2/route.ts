@@ -4,6 +4,7 @@ import { cancelProviderOrder, executeProviderOrder, getProviderOrderStatus } fro
 import type { ProviderOrderResult } from "@/lib/providers";
 import { cancelOrder, createOrder, getOrderStatus } from "@/lib/follower";
 import { findCatalogService, findCatalogServiceByPublicId, getPublicServiceId, loadServiceCatalog } from "@/lib/service-catalog";
+import { normalizeServiceLimits } from "@/lib/service-limits";
 import { canRequestOrderCancellation, normalizeOrderStatus, orderStatusKey } from "@/lib/order-status";
 import { API_RATE_LIMIT, checkApiRateLimit, isApiV2Enabled } from "@/lib/api-v2-guard";
 import { resolveApiKey } from "@/lib/api-key-cache";
@@ -437,8 +438,11 @@ export async function POST(request: Request) {
     return json({ error: "الخدمة غير متوفرة أو غير نشطة" }, { status: 400 });
   }
 
-  const min = svc.min || 0;
-  const max = svc.max || Number.MAX_SAFE_INTEGER;
+  const limits = normalizeServiceLimits(svc.min, svc.max);
+  if (!limits) {
+    return json({ error: "حدود هذه الخدمة غير صالحة حاليًا؛ حدّث كتالوج الخدمات قبل الطلب" }, { status: 409 });
+  }
+  const { min, max } = limits;
   if (qty < min || qty > max) {
     return json({ error: `الكمية يجب أن تكون بين ${min} و ${max}` }, { status: 400 });
   }

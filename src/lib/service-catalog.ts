@@ -8,6 +8,7 @@ import {
   translateServiceName,
   translationFingerprint,
 } from "@/lib/service-translation";
+import { normalizeServiceLimits } from "@/lib/service-limits";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -117,9 +118,9 @@ function mapProviderService(row: ProviderServiceRow): CatalogService | null {
   const localId = numberValue(row.id);
   const remoteId = String(row.remote_service_id ?? "").trim();
   if (!localId || !remoteId) return null;
-  const min = numberValue(row.min);
-  const max = numberValue(row.max);
-  const text = mapServiceText(row.name, row.description, row.category, row.type, min, max);
+  const limits = normalizeServiceLimits(row.min, row.max);
+  if (!limits) return null;
+  const text = mapServiceText(row.name, row.description, row.category, row.type, limits.min, limits.max);
   const storedNameAr = String(row.name_ar ?? "").trim();
   const storedDescriptionAr = String(row.description_ar ?? "").trim();
   const currentHash = translationFingerprint(text.name, text.description);
@@ -134,8 +135,8 @@ function mapProviderService(row: ProviderServiceRow): CatalogService | null {
     category: text.category,
     type: String(row.type ?? "service"),
     rate: numberValue(row.sell_rate, numberValue(row.rate)),
-    min,
-    max,
+    min: limits.min,
+    max: limits.max,
     source: "provider",
     providerId: numberValue(row.provider_id) || null,
     providerServiceId: localId,
@@ -180,14 +181,16 @@ export async function loadServiceCatalog(): Promise<CatalogService[]> {
     if (!service) continue;
     const id = String(service.service ?? "").trim();
     if (!id) continue;
+    const limits = normalizeServiceLimits(service.min, service.max);
+    if (!limits) continue;
     catalog.push({
       serviceId: id,
       remoteServiceId: id,
-      ...mapServiceText(service.name, service.description, service.category, service.type, numberValue(service.min), numberValue(service.max)),
+      ...mapServiceText(service.name, service.description, service.category, service.type, limits.min, limits.max),
       type: String(service.type ?? "service"),
       rate: numberValue(service.rate),
-      min: numberValue(service.min),
-      max: numberValue(service.max),
+      min: limits.min,
+      max: limits.max,
       source: "follower",
       providerId: null,
       providerServiceId: null,

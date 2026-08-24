@@ -332,6 +332,7 @@ const schemaStatements = [
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE CASCADE
   )`,
+  `UPDATE provider_services SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE min IS NULL OR max IS NULL OR min < 1 OR max < min OR min != CAST(min AS INTEGER) OR max != CAST(max AS INTEGER)`,
   `CREATE TABLE IF NOT EXISTS provider_order_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     local_order_id INTEGER,

@@ -4,6 +4,7 @@ import { db, initDb } from "@/lib/db";
 import { cancelOrder, createOrder } from "@/lib/follower";
 import { executeProviderOrder } from "@/lib/providers";
 import { findCatalogService, findCatalogServiceByPublicId } from "@/lib/service-catalog";
+import { normalizeServiceLimits } from "@/lib/service-limits";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -90,8 +91,9 @@ export async function POST(request: Request) {
       : undefined;
 
     if (providerService) {
-      const min = Number(providerService.min) || 0;
-      const max = Number(providerService.max) || Number.MAX_SAFE_INTEGER;
+      const limits = normalizeServiceLimits(providerService.min, providerService.max);
+      if (!limits) return json({ error: "حدود هذه الخدمة غير صالحة حاليًا لدى المزود؛ حدّث كتالوج الخدمات قبل الطلب" }, { status: 409 });
+      const { min, max } = limits;
       if (qty < min || qty > max) {
         return json({ error: `الكمية يجب أن تكون بين ${min} و ${max}` }, { status: 400 });
       }
@@ -205,8 +207,12 @@ export async function POST(request: Request) {
       return json({ error: "الخدمة غير موجودة أو غير نشطة أو معرّفها غير فريد" }, { status: 404 });
     }
 
-    if (qty < Number(service.min) || qty > Number(service.max)) {
-      return json({ error: `الكمية يجب أن تكون بين ${service.min} و ${service.max}` }, { status: 400 });
+    const limits = normalizeServiceLimits(service.min, service.max);
+    if (!limits) {
+      return json({ error: "حدود هذه الخدمة غير صالحة حاليًا لدى المزود؛ حدّث كتالوج الخدمات قبل الطلب" }, { status: 409 });
+    }
+    if (qty < limits.min || qty > limits.max) {
+      return json({ error: `الكمية يجب أن تكون بين ${limits.min} و ${limits.max}` }, { status: 400 });
     }
 
     const cost = (Number(service.rate) * qty) / 1000;
