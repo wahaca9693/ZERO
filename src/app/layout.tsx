@@ -16,10 +16,10 @@ const tajawal = Tajawal({
 });
 
 const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-const fallbackBranding = { siteName: "follower", siteDescription: "منصة خدمات تسويق اجتماعي احترافية", brandMediaUrl: "", brandMediaType: "image" } as const;
+const fallbackBranding = { siteName: "follower", siteDescription: "منصة خدمات تسويق اجتماعي احترافية", brandMediaUrl: "", brandMediaType: "image", telegramChannelEnabled: false, telegramChannelTitle: "قناة التحديثات", telegramChannelDescription: "تابع آخر أخبار المنصة وتحديثاتها.", telegramChannelUrl: "", aiSupportEnabled: false, aiSupportTitle: "دعم الذكاء الاصطناعي", aiSupportDescription: "مساعدة فورية وإجراءات ذكية على طلباتك.", aiSupportUrl: "" } as const;
 
-type Branding = { siteName: string; siteDescription: string; brandMediaUrl: string; brandMediaType: "image" | "video" };
-type BrandingRow = { siteName?: unknown; siteDescription?: unknown; brandMediaUrl?: unknown; brandMediaType?: unknown };
+type Branding = { siteName: string; siteDescription: string; brandMediaUrl: string; brandMediaType: "image" | "video"; telegramChannelEnabled: boolean; telegramChannelTitle: string; telegramChannelDescription: string; telegramChannelUrl: string; aiSupportEnabled: boolean; aiSupportTitle: string; aiSupportDescription: string; aiSupportUrl: string };
+type BrandingRow = { siteName?: unknown; siteDescription?: unknown; brandMediaUrl?: unknown; brandMediaType?: unknown; telegramChannelEnabled?: unknown; telegramChannelTitle?: unknown; telegramChannelDescription?: unknown; telegramChannelUrl?: unknown; aiSupportEnabled?: unknown; aiSupportTitle?: unknown; aiSupportDescription?: unknown; aiSupportUrl?: unknown };
 
 async function getInitialUser(): Promise<ClientAuthUser | null> {
   try {
@@ -70,7 +70,7 @@ async function getBranding(): Promise<Branding> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   try {
     const result = await Promise.race([
-      db.execute("SELECT siteName, siteDescription, brandMediaUrl, brandMediaType FROM site_settings LIMIT 1"),
+      db.execute("SELECT siteName, siteDescription, brandMediaUrl, brandMediaType, telegramChannelEnabled, telegramChannelTitle, telegramChannelDescription, telegramChannelUrl, aiSupportEnabled, aiSupportTitle, aiSupportDescription, aiSupportUrl FROM site_settings LIMIT 1"),
       new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => reject(new Error("branding lookup timeout")), 1500);
       }),
@@ -81,6 +81,14 @@ async function getBranding(): Promise<Branding> {
       siteDescription: typeof row?.siteDescription === "string" && row.siteDescription.trim() ? row.siteDescription.trim() : fallbackBranding.siteDescription,
       brandMediaUrl: typeof row?.brandMediaUrl === "string" ? row.brandMediaUrl : fallbackBranding.brandMediaUrl,
       brandMediaType: row?.brandMediaType === "video" ? "video" : "image",
+      telegramChannelEnabled: Number(row?.telegramChannelEnabled || 0) === 1,
+      telegramChannelTitle: typeof row?.telegramChannelTitle === "string" && row.telegramChannelTitle.trim() ? row.telegramChannelTitle.trim() : fallbackBranding.telegramChannelTitle,
+      telegramChannelDescription: typeof row?.telegramChannelDescription === "string" && row.telegramChannelDescription.trim() ? row.telegramChannelDescription.trim() : fallbackBranding.telegramChannelDescription,
+      telegramChannelUrl: typeof row?.telegramChannelUrl === "string" ? row.telegramChannelUrl.trim() : fallbackBranding.telegramChannelUrl,
+      aiSupportEnabled: Number(row?.aiSupportEnabled || 0) === 1,
+      aiSupportTitle: typeof row?.aiSupportTitle === "string" && row.aiSupportTitle.trim() ? row.aiSupportTitle.trim() : fallbackBranding.aiSupportTitle,
+      aiSupportDescription: typeof row?.aiSupportDescription === "string" && row.aiSupportDescription.trim() ? row.aiSupportDescription.trim() : fallbackBranding.aiSupportDescription,
+      aiSupportUrl: typeof row?.aiSupportUrl === "string" ? row.aiSupportUrl.trim() : fallbackBranding.aiSupportUrl,
     };
   } catch {
     return fallbackBranding;

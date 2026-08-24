@@ -3,12 +3,14 @@
 import { useState } from "react";
 import DashboardLayout from "../components/DashboardLayout";
 import Link from "next/link";
-import { Headphones, Bot, MessageCircle, FolderOpen, LifeBuoy, X, Send, Rocket, Gift, CreditCard, Ban, HelpCircle, AlertCircle, Loader2, Check } from "lucide-react";
+import { Headphones, Bot, FolderOpen, X, Send, Rocket, Gift, CreditCard, Ban, HelpCircle, AlertCircle, Loader2, Check } from "lucide-react";
 import { useLanguage } from "../components/LanguageProvider";
+import { useTheme } from "../components/ThemeProvider";
 import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
   const { t } = useLanguage();
+  const { settings } = useTheme();
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [selectedType, setSelectedType] = useState("");
@@ -70,19 +72,6 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <div className="space-y-4 pb-24">
-        {/* بانر مركز الدعم — تدرج ذهبي لامع */}
-        <div className="relative overflow-hidden rounded-3xl gradient-luxe p-5 text-black shadow-[0_0_40px_-12px_rgba(255,215,0,0.6)]">
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="text-xl font-black">{t("dashboard.supportCenter")}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-black/70">{t("dashboard.supportCenterDesc")}</p>
-            </div>
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black/15">
-              <LifeBuoy size={26} />
-            </span>
-          </div>
-        </div>
-
         {/* بطاقة الدعم الفني */}
         <button
           onClick={openSupport}
@@ -96,16 +85,24 @@ export default function DashboardPage() {
         </button>
 
         {/* بطاقة دعم الذكاء الاصطناعي */}
-        <button
-          onClick={openSupport}
-          className="block w-full rounded-3xl border border-[var(--color-gold)]/30 bg-gradient-to-br from-[#2e210b] to-[#1e1506] p-5 text-center transition hover:border-[var(--color-gold)]/60 hover:shadow-[0_0_36px_-14px_rgba(255,215,0,0.45)]"
-        >
-          <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border-2 border-[var(--color-gold)]/40 bg-[var(--color-gold)]/10 text-[var(--color-gold-bright)]">
-            <Bot size={36} />
-          </span>
-          <h3 className="mt-4 text-lg font-black text-white">{t("dashboard.aiSupport")}</h3>
-          <p className="mt-2 text-sm text-zinc-500">{t("dashboard.aiSupportDesc")}</p>
-        </button>
+        {settings.aiSupportEnabled && settings.aiSupportUrl ? (
+          <a
+            href={settings.aiSupportUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="block w-full rounded-3xl border border-[var(--color-gold)]/30 bg-gradient-to-br from-[#2e210b] to-[#1e1506] p-5 text-center transition hover:-translate-y-0.5 hover:border-[var(--color-gold)]/60 hover:shadow-[0_0_36px_-14px_rgba(255,215,0,0.45)]"
+          >
+            <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border-2 border-[var(--color-gold)]/40 bg-[var(--color-gold)]/10 text-[var(--color-gold-bright)]"><Bot size={36} /></span>
+            <h3 className="mt-4 text-lg font-black text-white">{settings.aiSupportTitle}</h3>
+            <p className="mt-2 text-sm text-zinc-500">{settings.aiSupportDescription}</p>
+          </a>
+        ) : (
+          <div className="block w-full rounded-3xl border border-dashed border-zinc-700/70 bg-zinc-900/30 p-5 text-center opacity-70">
+            <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border-2 border-zinc-700 bg-zinc-800/60 text-zinc-500"><Bot size={36} /></span>
+            <h3 className="mt-4 text-lg font-black text-zinc-300">{settings.aiSupportTitle}</h3>
+            <p className="mt-2 text-sm text-zinc-500">لم يتم إعداد رابط الدردشة بعد من لوحة الإدارة.</p>
+          </div>
+        )}
 
         {/* رابط التذاكر السابقة */}
         <Link
@@ -116,18 +113,20 @@ export default function DashboardPage() {
           <span className="font-black">{t("dashboard.previousTickets")}</span>
         </Link>
 
-        {/* أزرار التواصل الاجتماعي */}
-        <div className="flex items-center justify-center gap-4">
-          {["WhatsApp", "Telegram"].map((label) => (
-            <button
-              key={label}
-              title={label}
-              className="flex h-12 w-12 items-center justify-center rounded-full border border-[var(--color-gold)]/40 bg-[#2a1f0a] text-[var(--color-gold-pale)] transition hover:border-[var(--color-gold-bright)] hover:text-[var(--color-gold-bright)]"
+        {/* رابط قناة Telegram — يظهر يسار الصفحة عند تفعيله من الإدارة */}
+        {settings.telegramChannelEnabled && settings.telegramChannelUrl && (
+          <div dir="ltr" className="flex justify-start">
+            <a
+              href={settings.telegramChannelUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="group flex max-w-full items-center gap-3 rounded-2xl border border-[#229ED9]/35 bg-[#229ED9]/8 px-4 py-3 text-left transition hover:-translate-y-0.5 hover:border-[#229ED9] hover:bg-[#229ED9]/15"
             >
-              <MessageCircle size={22} />
-            </button>
-          ))}
-        </div>
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#229ED9] text-white shadow-[0_0_22px_-6px_rgba(34,158,217,0.9)]"><Send size={21} /></span>
+              <span dir="rtl" className="min-w-0"><b className="block truncate text-sm font-black text-white">{settings.telegramChannelTitle}</b><small className="mt-1 block truncate text-[10px] text-zinc-400">{settings.telegramChannelDescription}</small></span>
+            </a>
+          </div>
+        )}
       </div>
 
       {/* نافذة إنشاء التذكرة */}

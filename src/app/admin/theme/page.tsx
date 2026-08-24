@@ -72,6 +72,7 @@ export default function AdminThemePage() {
   }, [router]);
 
   const set = (key: string, value: string) => setSettings((current) => ({ ...current, [key]: value }));
+  const enabled = (key: string) => ["1", "true"].includes(String(settings[key]).toLowerCase());
 
   // Uploading and media changes are intentionally disabled to protect the official brand logo.
 
@@ -141,6 +142,20 @@ export default function AdminThemePage() {
             </div>
           </section>
         </div>
+
+        <section className="admin-card p-4 sm:p-5">
+          <div className="mb-4 border-b border-[var(--color-border)] pb-3"><h2 className="text-lg font-black text-white">روابط الدعم والتحديثات</h2><p className="mt-1 text-[10px] leading-5 text-zinc-500">أضف أو غيّر العناوين والوصف والروابط من هنا. عند إيقاف أي خيار سيُخفى من صفحة الدعم دون حذف الإعدادات.</p></div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl border border-[var(--color-border)] bg-black/10 p-4">
+              <label className="flex items-center justify-between gap-3"><span><b className="block text-sm font-black text-white">قناة Telegram للتحديثات</b><small className="mt-1 block text-[10px] leading-5 text-zinc-500">زر يفتح قناة الموقع في تبويب جديد.</small></span><input type="checkbox" checked={enabled("telegramChannelEnabled")} onChange={(event) => set("telegramChannelEnabled", event.target.checked ? "1" : "0")} className="h-5 w-5 accent-[var(--color-gold)]" /></label>
+              <div className="mt-3 space-y-3"><FieldLabel label="عنوان الزر" description="مثال: قناة التحديثات"><input value={String(settings.telegramChannelTitle || "")} onChange={(event) => set("telegramChannelTitle", event.target.value)} maxLength={80} className="input-premium mt-2 w-full" placeholder="قناة التحديثات" /></FieldLabel><FieldLabel label="الوصف" description="وصف قصير يظهر تحت العنوان"><textarea value={String(settings.telegramChannelDescription || "")} onChange={(event) => set("telegramChannelDescription", event.target.value)} maxLength={240} rows={2} className="input-premium mt-2 w-full resize-none" placeholder="تابع آخر أخبار المنصة وتحديثاتها." /></FieldLabel><FieldLabel label="رابط القناة" description="يجب أن يبدأ الرابط بـ https://"><input type="url" dir="ltr" value={String(settings.telegramChannelUrl || "")} onChange={(event) => set("telegramChannelUrl", event.target.value)} maxLength={2048} className="input-premium mt-2 w-full text-left" placeholder="https://t.me/your_channel" /></FieldLabel></div>
+            </div>
+            <div className="rounded-2xl border border-[var(--color-border)] bg-black/10 p-4">
+              <label className="flex items-center justify-between gap-3"><span><b className="block text-sm font-black text-white">دردشة الذكاء الاصطناعي</b><small className="mt-1 block text-[10px] leading-5 text-zinc-500">زر يفتح خدمة الذكاء الاصطناعي التي تختارها.</small></span><input type="checkbox" checked={enabled("aiSupportEnabled")} onChange={(event) => set("aiSupportEnabled", event.target.checked ? "1" : "0")} className="h-5 w-5 accent-[var(--color-gold)]" /></label>
+              <div className="mt-3 space-y-3"><FieldLabel label="عنوان الزر" description="العنوان الظاهر للمستخدم"><input value={String(settings.aiSupportTitle || "")} onChange={(event) => set("aiSupportTitle", event.target.value)} maxLength={80} className="input-premium mt-2 w-full" placeholder="دعم الذكاء الاصطناعي" /></FieldLabel><FieldLabel label="الوصف" description="وصف مختصر لوظيفة الخدمة"><textarea value={String(settings.aiSupportDescription || "")} onChange={(event) => set("aiSupportDescription", event.target.value)} maxLength={240} rows={2} className="input-premium mt-2 w-full resize-none" placeholder="مساعدة فورية وإجراءات ذكية على طلباتك." /></FieldLabel><FieldLabel label="رابط الخدمة" description="يجب أن يبدأ الرابط بـ https://"><input type="url" dir="ltr" value={String(settings.aiSupportUrl || "")} onChange={(event) => set("aiSupportUrl", event.target.value)} maxLength={2048} className="input-premium mt-2 w-full text-left" placeholder="https://example.com/ai-chat" /></FieldLabel></div>
+            </div>
+          </div>
+        </section>
 
         <section className="admin-card p-4 sm:p-5">
           <div className="mb-4 flex items-start justify-between gap-3"><div><h2 className="text-lg font-black text-white">الشعار والوسائط</h2><p className="mt-1 text-[10px] leading-5 text-zinc-500">الشعار الرسمي للمنصة ثابت ولا يمكن تغييره لضمان استقرار الهوية.</p></div><span className="rounded-xl bg-zinc-500/10 p-2 text-zinc-500"><ImageIcon size={17} /></span></div>

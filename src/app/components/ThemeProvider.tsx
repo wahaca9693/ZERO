@@ -16,6 +16,14 @@ export interface SiteSettings {
   cardColor: string;
   surfaceColor: string;
   borderColor: string;
+  telegramChannelEnabled: boolean;
+  telegramChannelTitle: string;
+  telegramChannelDescription: string;
+  telegramChannelUrl: string;
+  aiSupportEnabled: boolean;
+  aiSupportTitle: string;
+  aiSupportDescription: string;
+  aiSupportUrl: string;
 }
 
 interface ThemeContextType {
@@ -40,6 +48,14 @@ export const defaultSettings: SiteSettings = {
   cardColor: "var(--color-card)",
   surfaceColor: "var(--color-surface)",
   borderColor: "var(--color-border)",
+  telegramChannelEnabled: false,
+  telegramChannelTitle: "قناة التحديثات",
+  telegramChannelDescription: "تابع آخر أخبار المنصة وتحديثاتها.",
+  telegramChannelUrl: "",
+  aiSupportEnabled: false,
+  aiSupportTitle: "دعم الذكاء الاصطناعي",
+  aiSupportDescription: "مساعدة فورية وإجراءات ذكية على طلباتك.",
+  aiSupportUrl: "",
 };
 
 const ThemeContext = createContext<ThemeContextType>({
@@ -75,6 +91,14 @@ function normalizeSettings(value: unknown): SiteSettings {
     cardColor: stringValue("cardColor", defaultSettings.cardColor),
     surfaceColor: stringValue("surfaceColor", defaultSettings.surfaceColor),
     borderColor: stringValue("borderColor", defaultSettings.borderColor),
+    telegramChannelEnabled: Boolean(source.telegramChannelEnabled),
+    telegramChannelTitle: stringValue("telegramChannelTitle", defaultSettings.telegramChannelTitle),
+    telegramChannelDescription: stringValue("telegramChannelDescription", defaultSettings.telegramChannelDescription),
+    telegramChannelUrl: typeof source.telegramChannelUrl === "string" ? source.telegramChannelUrl.trim() : defaultSettings.telegramChannelUrl,
+    aiSupportEnabled: Boolean(source.aiSupportEnabled),
+    aiSupportTitle: stringValue("aiSupportTitle", defaultSettings.aiSupportTitle),
+    aiSupportDescription: stringValue("aiSupportDescription", defaultSettings.aiSupportDescription),
+    aiSupportUrl: typeof source.aiSupportUrl === "string" ? source.aiSupportUrl.trim() : defaultSettings.aiSupportUrl,
   };
 }
 

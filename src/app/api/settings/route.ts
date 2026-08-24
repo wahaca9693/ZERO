@@ -23,6 +23,14 @@ const keys = [
   "asiacellMinAmount",
   "apiV2Enabled",
   "registrationEnabled",
+  "telegramChannelEnabled",
+  "telegramChannelTitle",
+  "telegramChannelDescription",
+  "telegramChannelUrl",
+  "aiSupportEnabled",
+  "aiSupportTitle",
+  "aiSupportDescription",
+  "aiSupportUrl",
 ] as const;
 
 type SettingKey = (typeof keys)[number];
@@ -39,6 +47,14 @@ const aliases: Record<string, SettingKey> = {
   asiacell_min_amount: "asiacellMinAmount",
   api_v2_enabled: "apiV2Enabled",
   registration_enabled: "registrationEnabled",
+  telegram_channel_enabled: "telegramChannelEnabled",
+  telegram_channel_title: "telegramChannelTitle",
+  telegram_channel_description: "telegramChannelDescription",
+  telegram_channel_url: "telegramChannelUrl",
+  ai_support_enabled: "aiSupportEnabled",
+  ai_support_title: "aiSupportTitle",
+  ai_support_description: "aiSupportDescription",
+  ai_support_url: "aiSupportUrl",
 };
 
 const defaults: Record<SettingKey, string | number> = {
@@ -58,6 +74,14 @@ const defaults: Record<SettingKey, string | number> = {
   asiacellMinAmount: 0,
   apiV2Enabled: 1,
   registrationEnabled: 1,
+  telegramChannelEnabled: 0,
+  telegramChannelTitle: "قناة التحديثات",
+  telegramChannelDescription: "تابع آخر أخبار المنصة وتحديثاتها.",
+  telegramChannelUrl: "",
+  aiSupportEnabled: 0,
+  aiSupportTitle: "دعم الذكاء الاصطناعي",
+  aiSupportDescription: "مساعدة فورية وإجراءات ذكية على طلباتك.",
+  aiSupportUrl: "",
 };
 
 function json(data: unknown, status = 200) {
@@ -81,7 +105,7 @@ function readSettings(row: SettingsRow): SettingsData {
     const fallback = defaults[key];
     const rawValue = row?.[key] ?? fallback;
     const value = typeof rawValue === "string" || typeof rawValue === "number" ? rawValue : fallback;
-    settings[key] = ["apiV2Enabled", "registrationEnabled"].includes(key) ? Boolean(Number(value)) : value;
+    settings[key] = ["apiV2Enabled", "registrationEnabled", "telegramChannelEnabled", "aiSupportEnabled"].includes(key) ? Boolean(Number(value)) : value;
   }
   settings.site_name = String(settings.siteName);
   settings.theme_primary = String(settings.primaryColor);
@@ -130,6 +154,15 @@ function normalizeValue(key: SettingKey, value: unknown): string | number | null
   if (key === "brandMediaType") {
     return value === "video" ? "video" : value === "image" ? "image" : null;
   }
+  if (["telegramChannelUrl", "aiSupportUrl"].includes(key)) {
+    const text = String(value ?? "").trim();
+    if (!text) return "";
+    if (text.length > 2048 || !/^https:\/\//i.test(text)) return null;
+    return text;
+  }
+  if (["telegramChannelEnabled", "aiSupportEnabled"].includes(key)) {
+    return value === true || value === 1 || value === "1" ? 1 : 0;
+  }
   if (key === "brandMediaUrl") {
     const text = String(value ?? "").trim();
     if (!text) return "";
@@ -149,8 +182,8 @@ function normalizeValue(key: SettingKey, value: unknown): string | number | null
     return /^[A-Z]{3}$/.test(currency) ? currency : null;
   }
   const text = String(value ?? "").trim();
-  const maxLength = key === "siteName" ? 80 : 240;
-  return text.length > 0 && text.length <= maxLength ? text : null;
+  const maxLength = key === "siteName" || key.endsWith("Title") ? 80 : 240;
+  return text.length <= maxLength ? text : null;
 }
 
 export async function GET() {
