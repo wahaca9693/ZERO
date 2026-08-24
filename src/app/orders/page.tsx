@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import DashboardLayout from "../components/DashboardLayout";
-import { Search, RefreshCw, X, Link2, Package, Zap, Clock3, CheckCircle2, XCircle, AlertTriangle, Eye, Ban, CircleDollarSign } from "lucide-react";
+import { Search, RefreshCw, X, Link2, Package, Zap, Clock3, CheckCircle2, XCircle, AlertTriangle, Eye } from "lucide-react";
 import { useLanguage } from "../components/LanguageProvider";
 import { useLiveRefresh } from "../components/useLiveRefresh";
 
@@ -120,7 +120,6 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [canceling, setCanceling] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
 
   const fetchOrders = useCallback(async (showLoading = true) => {
@@ -163,29 +162,6 @@ export default function OrdersPage() {
     }
   };
 
-  const cancelSelectedOrder = async () => {
-    if (!selectedOrder || canceling) return;
-    if (!window.confirm(t("order.cancelConfirm"))) return;
-    setCanceling(true);
-    setModalMessage("");
-    try {
-      const res = await fetch("/api/orders/cancel", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId: selectedOrder.id }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t("order.cancelNoRefund"));
-      mergeOrder({ status: "Canceled", status_key: "canceled", refunded_at: new Date().toISOString() });
-      setModalMessage(t("order.cancelSuccess"));
-      await fetchOrders();
-    } catch (error) {
-      setModalMessage(error instanceof Error ? error.message : t("order.cancelNoRefund"));
-    } finally {
-      setCanceling(false);
-    }
-  };
-
   useLiveRefresh(() => {
     if (selectedOrder) return refreshSelectedOrder();
     return fetchOrders(false);
@@ -201,7 +177,6 @@ export default function OrdersPage() {
     { id: "Canceled", label: t("order.canceled") },
   ];
   const selectedStatusKey = selectedOrder ? (selectedOrder.status_key || statusKey(selectedOrder.status)) : "unknown";
-  const canCancel = Boolean(selectedOrder && (selectedOrder.can_cancel ?? ["pending", "reviewing", "stopped", "paused"].includes(selectedStatusKey)) && !selectedOrder.refunded_at);
   const total = Number(selectedOrder?.quantity || 0);
   const remaining = selectedOrder?.remains === null || selectedOrder?.remains === undefined ? null : Number(selectedOrder.remains);
   const completed = remaining !== null && Number.isFinite(remaining) ? Math.max(0, total - remaining) : null;
@@ -256,8 +231,8 @@ export default function OrdersPage() {
           </div>
           <div className="mt-3 rounded-2xl border border-[var(--color-gold)]/15 bg-[#1a1204]/60 p-3"><div className="text-xs text-zinc-500">{t("order.service")}</div><div className="text-sm text-white">{selectedOrder.service_name}</div></div>
           <div className="mt-3 flex items-center gap-2 rounded-2xl border border-[var(--color-gold)]/15 bg-[#1a1204]/60 p-3"><Link2 size={14} className="shrink-0 text-[var(--color-gold)]" /><a href={selectedOrder.link ?? undefined} target="_blank" rel="noreferrer" dir="ltr" className="truncate text-xs text-[var(--color-gold-pale)] hover:text-[var(--color-gold-bright)]">{selectedOrder.link}</a></div>
-          <div className="mt-4 grid grid-cols-2 gap-2"><button onClick={refreshSelectedOrder} disabled={refreshing} className="flex items-center justify-center gap-2 rounded-xl border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/10 px-3 py-2.5 text-sm font-black text-[var(--color-gold-pale)] disabled:opacity-50"><RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />{refreshing ? t("order.refreshing") : t("order.refresh")}</button>{canCancel ? <button onClick={cancelSelectedOrder} disabled={canceling} className="flex items-center justify-center gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2.5 text-sm font-black text-red-300 disabled:opacity-50"><Ban size={15} />{canceling ? t("order.refreshing") : t("order.cancelRequest")}</button> : <div className="flex items-center justify-center gap-2 rounded-xl border border-zinc-500/20 bg-zinc-500/10 px-2 py-2.5 text-center text-[11px] font-bold text-zinc-400"><CircleDollarSign size={14} />{t("order.cancelUnavailable")}</div>}</div>
-          <p className="mt-3 text-center text-[10px] leading-5 text-zinc-500">{t("order.cancelRules")} {t("order.trackHint")}</p>
+          <div className="mt-4"><button onClick={refreshSelectedOrder} disabled={refreshing} className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/10 px-3 py-2.5 text-sm font-black text-[var(--color-gold-pale)] disabled:opacity-50"><RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />{refreshing ? t("order.refreshing") : t("order.refresh")}</button></div>
+          <p className="mt-3 text-center text-[10px] leading-5 text-zinc-500">{t("order.trackHint")}</p>
           {modalMessage && <div className="mt-3 rounded-xl border border-[var(--color-gold)]/30 bg-[var(--color-gold)]/10 p-3 text-center text-xs font-bold text-[var(--color-gold-pale)]">{modalMessage}</div>}
         </div>
       </div>}

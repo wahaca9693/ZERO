@@ -24,6 +24,7 @@ import {
   Gift,
   Star,
   Sparkles,
+  MessageSquare,
 } from "lucide-react";
 import { useLanguage } from "./LanguageProvider";
 import { clearAuthBootstrap } from "./auth-client";
@@ -165,7 +166,7 @@ export default function Sidebar({ open, onClose, user }: SidebarProps) {
     { type: "link", label: t("sidebar.services"), description: getDescription("services", "تصفح الخدمات واختر المناسب"), href: "/services", icon: Boxes },
     { type: "link", label: "المجاني والهدايا", description: getDescription("free", "استخدم العروض المجانية المتاحة"), href: "/free-services", icon: Gift, badge: "مجاني", badgeColor: "green" },
     { type: "link", label: t("sidebar.orders"), description: getDescription("orders", "متابعة الطلبات وحالتها"), href: "/orders", icon: ShoppingCart },
-    { type: "link", label: t("sidebar.actions"), description: getDescription("actions", "إلغاء أو تسريع أو تعبئة الطلب"), href: "/orders?tab=actions", icon: Zap },
+    { type: "link", label: t("bottomNav.support"), description: getDescription("tickets", "تواصل مع الدعم لحل مشاكل الطلبات"), href: "/dashboard/tickets", icon: MessageSquare },
     { type: "link", label: t("sidebar.deposit"), description: getDescription("deposit", "إضافة رصيد إلى المحفظة"), href: "/deposit", icon: Wallet },
     { type: "link", label: "بوابة API", description: getDescription("api", "إدارة المفتاح وربط التطبيقات"), href: "/api-access", icon: KeyRound, badge: "جديد", badgeColor: "gold" },
     { type: "link", label: t("sidebar.transactions"), description: getDescription("transactions", "مراجعة حركات الرصيد"), href: "/transactions", icon: History },
