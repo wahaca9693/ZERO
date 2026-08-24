@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Modal } from "../components/Modal";
 import { Search, Layers, ChevronDown, ChevronUp, ShoppingCart, ShieldCheck, Sparkles, Zap, Infinity, RefreshCw, Wallet, type LucideIcon } from "lucide-react";
 import { PlatformIcon } from "../components/Icons";
@@ -50,6 +50,7 @@ function isTruthyFlag(value: unknown): boolean {
 let servicesSnapshot: ServicesSnapshot | null = null;
 
 const serviceTypeIds = ["followers", "likes", "views", "comments", "shares", "saves", "votes", "stories", "reels", "live", "other"];
+const SERVICE_RENDER_CHUNK = 100;
 
 const curatedPlatformLogos: Record<string, string> = {
   snapchat: "/platform-logos/snapchat-user.png",
@@ -126,6 +127,7 @@ export default function ServicesPage() {
   const [fetchError, setFetchError] = useState("");
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [visibleCategoryCounts, setVisibleCategoryCounts] = useState<Record<string, number>>({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [refreshingBalance, setRefreshingBalance] = useState(false);
 
@@ -187,7 +189,7 @@ export default function ServicesPage() {
     }
     setSyncing(true);
     try {
-      const res = await fetch("/api/services", { cache: "no-store" });
+      const res = await fetch("/api/services");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "تعذر تحميل الخدمات");
       const nextSnapshot: ServicesSnapshot = {
@@ -201,7 +203,7 @@ export default function ServicesPage() {
       setPlatforms(nextSnapshot.platforms);
       setExpandedCategories((previous) => {
         if (Object.keys(previous).length > 0) return previous;
-        return Object.fromEntries(nextSnapshot.categories.slice(0, 2).map((category) => [category, true]));
+        return Object.fromEntries(nextSnapshot.categories.slice(0, 1).map((category) => [category, true]));
       });
       setFetchError("");
       setLastSyncedAt(new Date());
@@ -235,7 +237,7 @@ export default function ServicesPage() {
     return () => { active = false; };
   }, []);
 
-  useLiveRefresh(() => loadServices(true), { intervalMs: 120000 });
+  useLiveRefresh(() => loadServices(true), { intervalMs: 300000 });
 
   const platformOptions = useMemo<PlatformOption[]>(() => {
     // الأزرار الافتراضية ثابتة وتظهر فورًا؛ الأزرار المخصصة تُدمج عند وصولها من الإدارة.
@@ -249,22 +251,25 @@ export default function ServicesPage() {
   const activePlatform = platformOptions.some((platform) => platform.id === selectedPlatform)
     ? selectedPlatform
     : "all";
+  const deferredSearch = useDeferredValue(search);
 
   const filteredServices = useMemo(() => {
-    const normalizedSearch = search.trim().toLocaleLowerCase(locale);
+    const normalizedSearch = deferredSearch.trim().toLocaleLowerCase(locale);
     return services.filter((s) => {
       const servicePlatform = safeServiceText(s.platform).toLowerCase();
       const serviceType = safeServiceText(s.serviceType || "other").toLowerCase();
       const serviceCategory = safeServiceText(s.category || "عام");
       const rawName = safeServiceText(s.name);
-        const translatedName = displayServiceName(s, locale);
-        const translatedDescription = displayServiceDescription(s, locale);
-        const searchableText = [
-          rawName,
-          translatedName,
-          safeServiceText(s.nameAr),
-          safeServiceText(s.description),
-          translatedDescription,
+      const matchesPlatform = serviceBelongsToPlatform(s, activePlatform, platformOptions);
+      const matchesType = selectedType === "all" ? true : serviceType === selectedType;
+      if (!matchesPlatform || !matchesType) return false;
+      if (!normalizedSearch) return true;
+      const searchableText = [
+        rawName,
+        displayServiceName(s, locale),
+        safeServiceText(s.nameAr),
+        safeServiceText(s.description),
+        displayServiceDescription(s, locale),
         safeServiceText(s.service),
         servicePlatform,
         translatePlatform(servicePlatform, locale),
@@ -273,10 +278,7 @@ export default function ServicesPage() {
         serviceCategory,
         translateServiceName(serviceCategory === "عام" ? "other" : serviceCategory, locale),
       ].join(" ").toLocaleLowerCase(locale);
-      const matchesPlatform = serviceBelongsToPlatform(s, activePlatform, platformOptions);
-      const matchesType = selectedType === "all" ? true : serviceType === selectedType;
-      const matchesSearch = !normalizedSearch || searchableText.includes(normalizedSearch);
-      return matchesPlatform && matchesType && matchesSearch;
+      return searchableText.includes(normalizedSearch);
     }).sort((a, b) => {
       // الخدمات الجديدة (وسم "جديد" / تحديث) تظهر أولًا دائمًا
       const aNew = isTruthyFlag(a.is_new) ? 1 : 0;
@@ -287,7 +289,7 @@ export default function ServicesPage() {
       if (aType !== bType) return (aType === -1 ? serviceTypeIds.length : aType) - (bType === -1 ? serviceTypeIds.length : bType);
       return safeServiceText(a.service).localeCompare(safeServiceText(b.service), locale, { numeric: true });
     });
-  }, [services, activePlatform, selectedType, search, locale, platformOptions]);
+  }, [services, activePlatform, selectedType, deferredSearch, locale, platformOptions]);
 
   const servicesByCategory = useMemo(() => {
     const map: Record<string, ServiceRecord[]> = {};
@@ -494,7 +496,7 @@ export default function ServicesPage() {
                   key={p.id}
                   type="button"
                   aria-pressed={active}
-                  onClick={() => { setSelectedPlatform(p.id); setSelectedType("all"); }}
+                  onClick={() => { setSelectedPlatform(p.id); setSelectedType("all"); setVisibleCategoryCounts({}); }}
                   className={`platform-tile group relative flex min-h-[6.5rem] flex-col items-center justify-center gap-2 px-1.5 py-3 sm:min-h-[7.25rem] sm:px-2.5 ${
                     active ? "platform-tile-active" : ""
                   }`}
@@ -525,7 +527,7 @@ export default function ServicesPage() {
           {availableTypes.map((type) => (
             <button
               key={type}
-              onClick={() => setSelectedType(type)}
+              onClick={() => { setSelectedType(type); setVisibleCategoryCounts({}); }}
               className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${
                 selectedType === type
                   ? "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white"
@@ -546,7 +548,7 @@ export default function ServicesPage() {
             placeholder={t("service.search")}
             aria-label={t("service.search")}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setVisibleCategoryCounts({}); }}
             className="input-luxe w-full rounded-2xl py-3.5 pr-12 pl-4 text-sm text-white"
           />
         </div>
@@ -607,7 +609,7 @@ export default function ServicesPage() {
                     </button>
                     {expanded && (
                       <div id={categoryElementId} className="border-t border-[var(--color-primary)]/10">
-                        {items.map((s) => (
+                        {items.slice(0, visibleCategoryCounts[category] || SERVICE_RENDER_CHUNK).map((s) => (
                           <div key={s.service} className="p-4 border-b border-[var(--color-primary)]/8 last:border-0">
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1">
@@ -642,6 +644,7 @@ export default function ServicesPage() {
                             </Link>
                           </div>
                         ))}
+                        {items.length > (visibleCategoryCounts[category] || SERVICE_RENDER_CHUNK) && <button type="button" onClick={() => setVisibleCategoryCounts((previous) => ({ ...previous, [category]: Math.min(items.length, (previous[category] || SERVICE_RENDER_CHUNK) + SERVICE_RENDER_CHUNK) }))} className="w-full border-t border-[var(--color-primary)]/10 px-4 py-3 text-xs font-black text-[var(--color-primary-light)] transition hover:bg-[var(--color-primary)]/5">عرض المزيد ({items.length - (visibleCategoryCounts[category] || SERVICE_RENDER_CHUNK)} متبقية)</button>}
                       </div>
                     )}
                   </div>

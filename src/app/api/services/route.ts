@@ -38,7 +38,7 @@ function json(data: unknown, init?: ResponseInit) {
   return NextResponse.json(data, {
     ...init,
     headers: {
-      "Cache-Control": "no-store, max-age=0",
+      "Cache-Control": "public, max-age=60, s-maxage=60, stale-while-revalidate=300",
       ...(init?.headers || {}),
     },
   });
@@ -151,6 +151,6 @@ export async function GET() {
     return json(await refreshServicesPayload());
   } catch (error) {
     const message = error instanceof Error ? error.message : "تعذر تحميل الخدمات";
-    return json({ error: message }, { status: 500 });
+    return json({ error: message }, { status: 500, headers: { "Cache-Control": "no-store, max-age=0" } });
   }
 }
