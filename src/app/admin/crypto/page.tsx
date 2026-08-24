@@ -18,6 +18,14 @@ interface CryptoDeposit {
   created_at: string;
 }
 
+type CryptoResponse = { deposits?: CryptoDeposit[]; error?: string; message?: string };
+
+async function readCryptoResponse(response: Response, fallback: string): Promise<CryptoResponse> {
+  const data = await response.json().catch(() => ({} as CryptoResponse));
+  if (!response.ok) throw new Error(data.error || data.message || fallback);
+  return data;
+}
+
 export default function AdminCryptoPage() {
   const [deposits, setDeposits] = useState<CryptoDeposit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,13 +34,14 @@ export default function AdminCryptoPage() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/crypto-deposits");
-      const data = await res.json();
-      if (data.deposits) setDeposits(data.deposits);
-    } catch {
-      /* لا شيء */
+      const res = await fetch("/api/admin/crypto-deposits", { cache: "no-store" });
+      const data = await readCryptoResponse(res, "تعذر تحميل إيداعات الكريبتو");
+      setDeposits(Array.isArray(data.deposits) ? data.deposits : []);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "تعذر تحميل إيداعات الكريبتو");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -41,14 +50,19 @@ export default function AdminCryptoPage() {
   }, [refresh]);
 
   const act = async (id: number, action: "approve" | "reject") => {
-    const res = await fetch("/api/admin/crypto-deposits", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, action }),
-    });
-    const data = await res.json();
-    setMessage(data.error || data.message || null);
-    refresh();
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/crypto-deposits", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action }),
+      });
+      const data = await readCryptoResponse(res, action === "approve" ? "تعذر شحن الرصيد" : "تعذر رفض الإيداع");
+      setMessage(data.message || "تم تحديث الإيداع");
+      await refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "تعذر تحديث الإيداع");
+    }
   };
 
   const pending = deposits.filter((d) => d.status === "pending").length;

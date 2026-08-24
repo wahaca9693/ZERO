@@ -15,6 +15,12 @@ type TicketRow = {
   adminReply?: string | null;
 };
 
+async function readApiResponse(response: Response, fallback: string) {
+  const data = await response.json().catch(() => ({} as { error?: string; message?: string }));
+  if (!response.ok) throw new Error(data.error || data.message || fallback);
+  return data as { error?: string; message?: string; tickets?: TicketRow[] };
+}
+
 const TYPE_LABELS: Record<string, string> = {
   speed_up: "تسريع طلب",
   refill: "تعويض طلب",
@@ -34,19 +40,25 @@ export default function AdminTicketsPage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    fetch("/api/user")
-      .then((res) => res.json())
-      .then((data) => setAuthorized(data.user?.role === "admin"));
+    let active = true;
+    fetch("/api/user", { cache: "no-store" })
+      .then((res) => readApiResponse(res, "تعذر التحقق من صلاحيات الحساب"))
+      .then((data) => { if (active) setAuthorized(Boolean((data as { user?: { role?: string } }).user?.role === "admin")); })
+      .catch(() => { if (active) { setAuthorized(false); setMessage("تعذر التحقق من صلاحيات الحساب"); } });
+    return () => { active = false; };
   }, []);
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/tickets?status=${filter}`);
-      const data = await res.json();
+      const res = await fetch(`/api/admin/tickets?status=${filter}`, { cache: "no-store" });
+      const data = await readApiResponse(res, "تعذر تحميل التذاكر");
       setTickets(Array.isArray(data.tickets) ? data.tickets : []);
-    } catch {}
-    setLoading(false);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "تعذر تحميل التذاكر");
+    } finally {
+      setLoading(false);
+    }
   }, [filter]);
 
   useEffect(() => {
@@ -56,33 +68,40 @@ export default function AdminTicketsPage() {
   }, [authorized, fetchTickets]);
 
   const sendReply = async (ticketId: number) => {
-    if (!replyText.trim()) return;
+    const reply = replyText.trim();
+    if (!reply) return;
     setReplying(ticketId);
     setMessage("");
-    const res = await fetch("/api/admin/tickets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "reply", ticketId, reply: replyText }),
-    });
-    const data = await res.json();
-    setReplying(null);
-    setReplyText("");
-    if (data.error) {
-      setMessage(data.error);
-    } else {
+    try {
+      const res = await fetch("/api/admin/tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reply", ticketId, reply }),
+      });
+      await readApiResponse(res, "تعذر إرسال الرد");
+      setReplyText("");
       setMessage("تم الرد بنجاح");
-      fetchTickets();
+      await fetchTickets();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "تعذر إرسال الرد");
+    } finally {
+      setReplying(null);
     }
   };
 
   const changeStatus = async (ticketId: number, status: string) => {
-    const res = await fetch("/api/admin/tickets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "status", ticketId, status }),
-    });
-    const data = await res.json();
-    if (!data.error) fetchTickets();
+    setMessage("");
+    try {
+      const res = await fetch("/api/admin/tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "status", ticketId, status }),
+      });
+      await readApiResponse(res, "تعذر تحديث حالة التذكرة");
+      await fetchTickets();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "تعذر تحديث حالة التذكرة");
+    }
   };
 
   if (authorized === null) {

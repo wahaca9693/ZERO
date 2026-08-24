@@ -11,6 +11,14 @@ type AsiacellStatus = {
   exchange_rate?: number | string | null;
 };
 
+type AsiacellResponse = AsiacellStatus & { error?: string; message?: string; success?: boolean; processed?: number };
+
+async function readAsiacellResponse(response: Response, fallback: string): Promise<AsiacellResponse> {
+  const data = await response.json().catch(() => ({} as AsiacellResponse));
+  if (!response.ok) throw new Error(data.error || data.message || fallback);
+  return data;
+}
+
 export default function AsiacellAdminPage() {
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [status, setStatus] = useState<AsiacellStatus | null>(null);
@@ -24,13 +32,14 @@ export default function AsiacellAdminPage() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch("/api/payments/asiacell/admin");
-      const data = await res.json();
-      if (data.error) return;
-      setStatus(data as AsiacellStatus);
+      const res = await fetch("/api/payments/asiacell/admin", { cache: "no-store" });
+      const data = await readAsiacellResponse(res, "تعذر تحميل حالة آسياسيل");
+      setStatus(data);
       setStorePhone(data.store_phone || "");
       setRate(String(data.exchange_rate || 1666));
-    } catch {}
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "تعذر تحميل حالة آسياسيل");
+    }
   }, []);
 
   useEffect(() => {
@@ -45,18 +54,19 @@ export default function AsiacellAdminPage() {
     e.preventDefault();
     setLoading(true);
     setMessage("");
-    const res = await fetch("/api/payments/asiacell/admin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "login", phone }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (data.error) {
-      setMessage(data.error);
-    } else {
+    try {
+      const res = await fetch("/api/payments/asiacell/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "login", phone }),
+      });
+      const data = await readAsiacellResponse(res, "تعذر بدء ربط آسياسيل");
       setStep("otp");
       setMessage(data.message || "تم إرسال رمز التحقق");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "تعذر بدء ربط آسياسيل");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -64,30 +74,42 @@ export default function AsiacellAdminPage() {
     e.preventDefault();
     setLoading(true);
     setMessage("");
-    const res = await fetch("/api/payments/asiacell/admin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "verify", otp }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    setMessage(data.error || data.message);
-    if (data.success) {
-      setStep("login");
-      setOtp("");
-      fetchStatus();
+    try {
+      const res = await fetch("/api/payments/asiacell/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify", otp }),
+      });
+      const data = await readAsiacellResponse(res, "تعذر التحقق من رمز آسياسيل");
+      setMessage(data.message || "تم التحقق");
+      if (data.success) {
+        setStep("login");
+        setOtp("");
+        await fetchStatus();
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "تعذر التحقق من رمز آسياسيل");
+    } finally {
+      setLoading(false);
     }
   };
 
   const logout = async () => {
     setLoading(true);
-    await fetch("/api/payments/asiacell/admin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "logout" }),
-    });
-    setLoading(false);
-    fetchStatus();
+    setMessage("");
+    try {
+      const res = await fetch("/api/payments/asiacell/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "logout" }),
+      });
+      await readAsiacellResponse(res, "تعذر فك ربط آسياسيل");
+      await fetchStatus();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "تعذر فك ربط آسياسيل");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const savePhone = async () => {
@@ -98,43 +120,62 @@ export default function AsiacellAdminPage() {
     }
     setLoading(true);
     setMessage("");
-    const res = await fetch("/api/payments/asiacell/admin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "set-store-phone", phone: p }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    setMessage(data.error || "تم حفظ رقم المتجر");
-    fetchStatus();
+    try {
+      const res = await fetch("/api/payments/asiacell/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set-store-phone", phone: p }),
+      });
+      const data = await readAsiacellResponse(res, "تعذر حفظ رقم المتجر");
+      setMessage(data.message || "تم حفظ رقم المتجر");
+      await fetchStatus();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "تعذر حفظ رقم المتجر");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const saveRate = async () => {
     const r = parseInt(rate, 10);
-    if (!r) return;
+    if (!Number.isInteger(r) || r <= 0) {
+      setMessage("سعر الصرف يجب أن يكون رقمًا أكبر من صفر");
+      return;
+    }
     setLoading(true);
-    const res = await fetch("/api/payments/asiacell/admin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "set-rate", rate: r }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    setMessage(data.error || "تم حفظ سعر الصرف");
-    fetchStatus();
+    setMessage("");
+    try {
+      const res = await fetch("/api/payments/asiacell/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set-rate", rate: r }),
+      });
+      const data = await readAsiacellResponse(res, "تعذر حفظ سعر الصرف");
+      setMessage(data.message || "تم حفظ سعر الصرف");
+      await fetchStatus();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "تعذر حفظ سعر الصرف");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const checkRecords = async () => {
     setLoading(true);
     setMessage("");
-    const res = await fetch("/api/payments/asiacell/admin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "check-records" }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    setMessage(data.error || `تم فحص السجلات: ${data.processed || 0} معالجة`);
+    try {
+      const res = await fetch("/api/payments/asiacell/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "check-records" }),
+      });
+      const data = await readAsiacellResponse(res, "تعذر فحص سجلات الرسائل");
+      setMessage(data.message || `تم فحص السجلات: ${data.processed || 0} معالجة`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "تعذر فحص سجلات الرسائل");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const cleanPhone = (p: string) => p.replace(/[^0-9]/g, "");

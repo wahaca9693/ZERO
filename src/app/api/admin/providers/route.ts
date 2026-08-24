@@ -436,7 +436,7 @@ export async function POST(request: Request) {
           syncStatements.push({
             sql: `INSERT INTO provider_services (provider_id, remote_service_id, name, description, name_ar, description_ar, translation_source_hash, category, rate, min, max, type, markup_percent, sell_rate, pricing_mode, manual_price, is_new)
                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)`,
-            args: [Number(providerId), remoteId, text.name, text.description, text.nameAr, text.descriptionAr, text.sourceHash, String(s.category || ""), costRate, Number(s.min) || 0, Number(s.max) || 0, String(s.type || ""), markupPct, sellRate, "markup", null],
+            args: [Number(providerId), remoteId, text.name, text.description, text.nameAr, text.descriptionAr, text.sourceHash, String(s.category || ""), costRate, limits.min, limits.max, String(s.type || ""), markupPct, sellRate, "markup", null],
           });
           inserted++;
         }
@@ -491,25 +491,33 @@ export async function POST(request: Request) {
     // 4) تفعيل/إيقاف مزود — تحديث محلي فوري مستقل عن حالة الاتصال الخارجي.
     if (action === "toggle") {
       const providerId = Number(body.id);
-      await db.execute({
+      if (!Number.isInteger(providerId) || providerId <= 0) return NextResponse.json({ error: "معرّف المزود غير صالح" }, { status: 400 });
+      const result = await db.execute({
         sql: "UPDATE providers SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         args: [providerId],
       });
+      if (Number((result as { rowsAffected?: number }).rowsAffected || 0) !== 1) return NextResponse.json({ error: "المزود غير موجود" }, { status: 404 });
       const row = await db.execute({ sql: "SELECT id, is_active FROM providers WHERE id = ?", args: [providerId] });
       invalidateProviderCatalogCaches();
-      return NextResponse.json({ ok: true, provider: row.rows[0] || { id: providerId } });
+      return NextResponse.json({ ok: true, provider: row.rows[0] });
     }
 
     // 5) حذف مزود
     if (action === "delete") {
-      await db.execute({ sql: "DELETE FROM providers WHERE id = ?", args: [Number(body.id)] });
+      const providerId = Number(body.id);
+      if (!Number.isInteger(providerId) || providerId <= 0) return NextResponse.json({ error: "معرّف المزود غير صالح" }, { status: 400 });
+      const result = await db.execute({ sql: "DELETE FROM providers WHERE id = ?", args: [providerId] });
+      if (Number((result as { rowsAffected?: number }).rowsAffected || 0) !== 1) return NextResponse.json({ error: "المزود غير موجود" }, { status: 404 });
       invalidateProviderCatalogCaches();
       return NextResponse.json({ ok: true });
     }
 
     // 6) حذف خدمة مزود (تخفى نهائيًا — تعود عند المزامنة التالية)
     if (action === "delete-service") {
-      await db.execute({ sql: "DELETE FROM provider_services WHERE id = ?", args: [Number(body.id)] });
+      const serviceId = Number(body.id);
+      if (!Number.isInteger(serviceId) || serviceId <= 0) return NextResponse.json({ error: "معرّف الخدمة غير صالح" }, { status: 400 });
+      const result = await db.execute({ sql: "DELETE FROM provider_services WHERE id = ?", args: [serviceId] });
+      if (Number((result as { rowsAffected?: number }).rowsAffected || 0) !== 1) return NextResponse.json({ error: "الخدمة غير موجودة" }, { status: 404 });
       invalidateProviderCatalogCaches();
       return NextResponse.json({ ok: true });
     }
@@ -589,6 +597,8 @@ export async function POST(request: Request) {
       const pricingEnabled = body?.pricing_enabled === true;
       const pricing = parsePricing(body, pricingEnabled ? DEFAULT_MARKUP : 0);
       const markupPct = pricingEnabled ? pricing.markup : 0;
+      const storedPricingMode = pricingEnabled ? pricing.mode : "markup";
+      const storedManualPrice = pricingEnabled && pricing.mode === "manual" ? pricing.manual : null;
       const statements: SqlStatement[] = [];
       const insertedRemoteIds: string[] = [];
       let skipped = 0;
@@ -614,7 +624,7 @@ export async function POST(request: Request) {
         statements.push({
           sql: `INSERT INTO provider_services (provider_id, remote_service_id, name, category, rate, min, max, type, markup_percent, sell_rate, pricing_mode, manual_price, is_active, is_new)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,1)`,
-          args: [providerId, remoteId, name, category, rate, limits.min, limits.max, type, markupPct, sellRate, pricing.mode, pricing.manual],
+          args: [providerId, remoteId, name, category, rate, limits.min, limits.max, type, markupPct, sellRate, storedPricingMode, storedManualPrice],
         });
         insertedRemoteIds.push(remoteId);
         knownIds.add(remoteId);
@@ -659,15 +669,21 @@ export async function POST(request: Request) {
     // 6-ج) تعديل اسم أي خدمة (ينطبق فورًا على كل المستخدمين)
     if (action === "rename-service") {
       const { id, name } = body;
-      await db.execute({ sql: "UPDATE provider_services SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [String(name), Number(id)] });
+      const serviceName = String(name ?? "").trim();
+      const serviceId = Number(id);
+      if (!Number.isInteger(serviceId) || serviceId <= 0 || serviceName.length < 2 || serviceName.length > 240) return NextResponse.json({ error: "اسم الخدمة أو معرّفها غير صالح" }, { status: 400 });
+      const result = await db.execute({ sql: "UPDATE provider_services SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [serviceName, serviceId] });
+      if (Number((result as { rowsAffected?: number }).rowsAffected || 0) !== 1) return NextResponse.json({ error: "الخدمة غير موجودة" }, { status: 404 });
       invalidateProviderCatalogCaches();
       return NextResponse.json({ ok: true });
     }
 
     // 6-د) إزالة وسم "جديد" من خدمة
     if (action === "clear-new-badge") {
-      const { id } = body;
-      await db.execute({ sql: "UPDATE provider_services SET is_new = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [Number(id)] });
+      const serviceId = Number(body.id);
+      if (!Number.isInteger(serviceId) || serviceId <= 0) return NextResponse.json({ error: "معرّف الخدمة غير صالح" }, { status: 400 });
+      const result = await db.execute({ sql: "UPDATE provider_services SET is_new = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [serviceId] });
+      if (Number((result as { rowsAffected?: number }).rowsAffected || 0) !== 1) return NextResponse.json({ error: "الخدمة غير موجودة" }, { status: 404 });
       invalidateProviderCatalogCaches();
       return NextResponse.json({ ok: true });
     }
@@ -680,10 +696,11 @@ export async function POST(request: Request) {
       if (!s) return NextResponse.json({ error: "الخدمة غير موجودة" }, { status: 404 });
       const pricing = parsePricing(body, Number(s.markup_percent ?? DEFAULT_MARKUP), String(s.pricing_mode || "markup"), s.manual_price == null ? null : Number(s.manual_price));
       const sellRate = resolveSellRate(Number(s.rate) || 0, pricing.markup, pricing.mode, pricing.manual ?? undefined);
-      await db.execute({
+      const result = await db.execute({
         sql: `UPDATE provider_services SET markup_percent=?, pricing_mode=?, manual_price=?, sell_rate=?, is_active=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
         args: [pricing.markup, pricing.mode, pricing.mode === "manual" ? pricing.manual : null, sellRate, is_active === undefined ? Number(s.is_active ?? 1) : (Number(is_active) ? 1 : 0), Number(id)],
       });
+      if (Number((result as { rowsAffected?: number }).rowsAffected || 0) !== 1) return NextResponse.json({ error: "الخدمة غير موجودة" }, { status: 404 });
       invalidateProviderCatalogCaches();
       return NextResponse.json({ ok: true, pricing_mode: pricing.mode, manual_price: pricing.manual, sell_rate: sellRate });
     }
