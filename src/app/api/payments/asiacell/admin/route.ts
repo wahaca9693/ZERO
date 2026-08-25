@@ -10,7 +10,19 @@ type AdminActionBody = {
 };
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Unexpected error";
+  return error instanceof Error ? error.message : "";
+}
+
+function authStatus(error: unknown): number {
+  const message = errorMessage(error);
+  if (message === "Unauthorized") return 401;
+  if (message === "Forbidden" || message === "Account banned") return 403;
+  return 500;
+}
+
+function authErrorResponse(error: unknown, fallback: string) {
+  const status = authStatus(error);
+  return NextResponse.json({ error: status === 401 ? "يرجى تسجيل الدخول" : status === 403 ? "غير مصرح" : fallback }, { status });
 }
 
 export async function GET() {
@@ -24,7 +36,7 @@ export async function GET() {
       store_phone: admin?.store_phone || admin?.phone || "",
     });
   } catch (error: unknown) {
-    return NextResponse.json({ error: errorMessage(error) }, { status: 401 });
+    return authErrorResponse(error, "تعذر تحميل حالة آسياسيل");
   }
 }
 
@@ -60,7 +72,7 @@ export async function POST(request: Request) {
 
     if (action === "set-rate") {
       const rate = Number(body.rate);
-      if (!rate || rate <= 0) {
+      if (!Number.isFinite(rate) || rate <= 0 || rate > 1_000_000_000) {
         return NextResponse.json({ error: "سعر الصرف غير صالح" }, { status: 400 });
       }
       await setAdminRow({ exchange_rate: rate });
@@ -75,6 +87,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "إجراء غير معروف" }, { status: 400 });
   } catch (error: unknown) {
     console.error("[Asiacell Admin]", error);
-    return NextResponse.json({ error: errorMessage(error) }, { status: 500 });
+    return authErrorResponse(error, "تعذر تنفيذ إجراء Asiacell");
   }
 }

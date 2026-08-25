@@ -72,8 +72,8 @@ export async function POST(request: Request) {
     const reply = typeof body.reply === "string" ? body.reply : "";
     const status = typeof body.status === "string" ? body.status : "";
 
-    if (ticketId <= 0) {
-      return NextResponse.json({ error: "معرف التذكرة مطلوب" }, { status: 400 });
+    if (!Number.isInteger(ticketId) || ticketId <= 0) {
+      return NextResponse.json({ error: "معرف التذكرة غير صالح" }, { status: 400 });
     }
 
     if (action === "reply") {
@@ -81,10 +81,14 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "الرد مطلوب" }, { status: 400 });
       }
 
-      await db.execute({
+      if (reply.trim().length > 5000) {
+        return NextResponse.json({ error: "الرد طويل جدًا" }, { status: 400 });
+      }
+      const updated = await db.execute({
         sql: "UPDATE tickets SET admin_reply = ?, status = 'resolved', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         args: [reply.trim(), ticketId],
       });
+      if (Number(updated.rowsAffected || 0) !== 1) return NextResponse.json({ error: "التذكرة غير موجودة" }, { status: 404 });
 
       return NextResponse.json({ success: true, message: "تم الرد على التذكرة" });
     }
@@ -104,6 +108,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "إجراء غير معروف" }, { status: 400 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "تعذر تحديث التذكرة";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message === "Unauthorized" ? 401 : message === "Forbidden" || message === "Account banned" ? 403 : 500;
+    return NextResponse.json({ error: status === 401 ? "يرجى تسجيل الدخول" : status === 403 ? "غير مصرح" : status === 500 ? "تعذر تحديث التذكرة" : message }, { status });
   }
 }

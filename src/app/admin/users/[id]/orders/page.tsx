@@ -60,44 +60,75 @@ export default function UserOrdersAdminPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [user, setUser] = useState<{ username: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
   const [orderStatus, setOrderStatus] = useState<OrderStatusPayload | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
 
   useEffect(() => {
     let active = true;
-    fetch(`/api/admin/orders?userId=${userId}`, { credentials: "include", cache: "no-store" })
-      .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
-      .then(({ ok, data }) => {
-        if (!active) return;
-        setOrders(ok ? data.orders || [] : []);
-        if (ok && data.orders?.length) setUser({ username: data.orders[0].username });
-      })
-      .catch(() => {
-        if (active) setOrders([]);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+    const timer = window.setTimeout(() => {
+      if (!userId) {
+        setLoadError("معرّف المستخدم غير صالح");
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      setLoadError("");
+      fetch(`/api/admin/orders?userId=${encodeURIComponent(String(userId))}`, { credentials: "include", cache: "no-store" })
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({} as { orders?: AdminOrder[]; error?: string }));
+          return { ok: res.ok, data };
+        })
+        .then(({ ok, data }) => {
+          if (!active) return;
+          if (!ok) {
+            setOrders([]);
+            setLoadError(data.error || "تعذر تحميل طلبات المستخدم");
+            return;
+          }
+          setOrders(Array.isArray(data.orders) ? data.orders : []);
+          if (Array.isArray(data.orders) && data.orders.length) setUser({ username: data.orders[0].username });
+        })
+        .catch(() => {
+          if (active) {
+            setOrders([]);
+            setLoadError("تعذر الاتصال بالخادم");
+          }
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    }, 0);
     return () => {
       active = false;
+      window.clearTimeout(timer);
     };
   }, [userId]);
 
   const checkStatus = async (order: AdminOrder) => {
+    if (statusLoading) return;
     setSelectedOrder(order);
     setOrderStatus(null);
-    const res = await fetch("/api/admin/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ orderId: order.id }),
-    });
-    const data = await res.json() as OrderStatusPayload;
-    if (res.ok) {
-      setOrderStatus(data);
-      setSelectedOrder((current) => current ? { ...current, status: String(data.status || current.status) } : current);
-    } else {
-      setOrderStatus({ error: data.error || "تعذر تحديث حالة الطلب" });
+    setStatusLoading(true);
+    try {
+      const res = await fetch("/api/admin/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ orderId: order.id }),
+      });
+      const data = await res.json().catch(() => ({} as OrderStatusPayload)) as OrderStatusPayload;
+      if (res.ok) {
+        setOrderStatus(data);
+        setSelectedOrder((current) => current ? { ...current, status: String(data.status || current.status) } : current);
+      } else {
+        setOrderStatus({ error: data.error || "تعذر تحديث حالة الطلب" });
+      }
+    } catch {
+      setOrderStatus({ error: "تعذر الاتصال بالخادم لتحديث الحالة" });
+    } finally {
+      setStatusLoading(false);
     }
   };
 
@@ -115,6 +146,11 @@ export default function UserOrdersAdminPage() {
           <div className="flex h-40 items-center justify-center">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-border)] border-t-[var(--color-primary)]" />
           </div>
+        ) : loadError ? (
+          <div className="flex h-60 flex-col items-center justify-center rounded-3xl border border-red-400/20 bg-red-500/5 text-center text-red-200">
+            <Package size={48} className="mb-3 opacity-30" />
+            <p>{loadError}</p>
+          </div>
         ) : orders.length === 0 ? (
           <div className="flex h-60 flex-col items-center justify-center rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] text-zinc-500">
             <Package size={48} className="mb-3 opacity-30" />
@@ -125,7 +161,7 @@ export default function UserOrdersAdminPage() {
             {orders.map((order) => (
               <div
                 key={order.id}
-                onClick={() => checkStatus(order)}
+                onClick={() => void checkStatus(order)}
                 className="cursor-pointer rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 transition hover:border-[var(--color-primary)]/30"
               >
                 <div className="flex items-start justify-between">
@@ -139,7 +175,7 @@ export default function UserOrdersAdminPage() {
                 </div>
                 <div className="mt-3 flex items-center justify-between text-sm">
                   <span className="text-zinc-500">{order.quantity} وحدة</span>
-                  <span className="font-bold text-[var(--color-primary)]">${order.charge.toFixed(4)}</span>
+                  <span className="font-bold text-[var(--color-primary)]">${Number(order.charge || 0).toFixed(4)}</span>
                 </div>
               </div>
             ))}
@@ -171,7 +207,7 @@ export default function UserOrdersAdminPage() {
               </div>
               <div className="rounded-xl bg-[var(--color-surface)] p-3">
                 <div className="text-xs text-zinc-500">المبلغ</div>
-                <div className="font-bold text-[var(--color-primary)]">${selectedOrder.charge.toFixed(4)}</div>
+                <div className="font-bold text-[var(--color-primary)]">${Number(selectedOrder.charge || 0).toFixed(4)}</div>
               </div>
             </div>
             <div className="mt-3 rounded-xl bg-[var(--color-surface)] p-3">
@@ -193,10 +229,11 @@ export default function UserOrdersAdminPage() {
               </div>
             ) : null}
             <button
-              onClick={() => checkStatus(selectedOrder)}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] py-3 font-bold text-white"
+              onClick={() => void checkStatus(selectedOrder)}
+              disabled={statusLoading}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] py-3 font-bold text-white disabled:cursor-wait disabled:opacity-60"
             >
-              <RefreshCw size={18} /> تحديث الحالة
+              <RefreshCw size={18} className={statusLoading ? "animate-spin" : ""} /> {statusLoading ? "جاري التحديث..." : "تحديث الحالة"}
             </button>
           </div>
         </div>

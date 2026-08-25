@@ -245,13 +245,15 @@ export async function POST(request: Request) {
 
     if (action === "ban" || action === "unban") {
       const banned = action === "ban" ? 1 : 0;
-      await db.execute({ sql: "UPDATE users SET is_banned = ?, status = ? WHERE id = ?", args: [banned, banned ? "banned" : "active", uid] });
+      const updated = await db.execute({ sql: "UPDATE users SET is_banned = ?, status = ? WHERE id = ? AND role != 'admin'", args: [banned, banned ? "banned" : "active", uid] });
+      if (Number(updated.rowsAffected || 0) !== 1) return json({ error: "المستخدم غير موجود أو محمي" }, 404);
       await audit(admin.userId, uid, action);
       return json({ success: true, message: banned ? "تم حظر المستخدم" : "تم فك الحظر عن المستخدم" });
     }
 
     if (action === "delete") {
-      await db.execute({ sql: "DELETE FROM users WHERE id = ?", args: [uid] });
+      const deleted = await db.execute({ sql: "DELETE FROM users WHERE id = ? AND role != 'admin'", args: [uid] });
+      if (Number(deleted.rowsAffected || 0) !== 1) return json({ error: "المستخدم غير موجود أو محمي" }, 404);
       await audit(admin.userId, uid, action, { deleted: true });
       return json({ success: true, message: "تم حذف المستخدم" });
     }
@@ -294,7 +296,8 @@ export async function POST(request: Request) {
       const password = String(body.password || "");
       if (password.length < 8) return json({ error: "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل" }, 400);
       const passwordHash = await bcrypt.hash(password, 12);
-      await db.execute({ sql: "UPDATE users SET password_hash = ? WHERE id = ?", args: [passwordHash, uid] });
+      const updated = await db.execute({ sql: "UPDATE users SET password_hash = ? WHERE id = ? AND role != 'admin'", args: [passwordHash, uid] });
+      if (Number(updated.rowsAffected || 0) !== 1) return json({ error: "المستخدم غير موجود أو محمي" }, 404);
       await audit(admin.userId, uid, action, { password_changed: true });
       return json({ success: true, message: "تم تعيين كلمة مرور جديدة مشفّرة. لا يتم عرضها أو حفظها بصورتها الأصلية." });
     }
