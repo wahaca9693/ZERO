@@ -283,9 +283,9 @@ export async function POST(request: Request) {
       },
     });
   } catch (err: unknown) {
-    console.error("Create order error:", err);
-    const message = err instanceof Error ? err.message : "حدث خطأ";
+    const message = err instanceof Error ? err.message : "";
     const status = message === "Unauthorized" ? 401 : message === "Account banned" ? 403 : 500;
-    return json({ error: message }, { status });
+    if (status >= 500) console.error("Create order error:", err);
+    return json({ error: status === 401 ? "يرجى تسجيل الدخول" : status === 403 ? "الحساب محظور" : "تعذر إنشاء الطلب" }, { status });
   }
 }

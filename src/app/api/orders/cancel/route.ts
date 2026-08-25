@@ -115,10 +115,10 @@ export async function POST(request: Request) {
       message: "تم إلغاء الطلب وإعادة رصيده إلى محفظتك بعد تأكيد المزود",
     });
   } catch (error) {
-    console.error("Order cancellation error:", error);
     const message = error instanceof Error ? error.message : "";
-    if (message === "Unauthorized") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (message === "Account banned") return NextResponse.json({ error: "Account banned" }, { status: 403 });
-    return NextResponse.json({ error: message || "تعذر إلغاء الطلب" }, { status: 500 });
+    if (message === "Unauthorized") return NextResponse.json({ error: "يرجى تسجيل الدخول" }, { status: 401 });
+    if (message === "Account banned") return NextResponse.json({ error: "الحساب محظور" }, { status: 403 });
+    console.error("Order cancellation error:", error);
+    return NextResponse.json({ error: "تعذر إلغاء الطلب" }, { status: 500 });
   }
 }
