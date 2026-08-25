@@ -118,10 +118,10 @@ export async function POST(request: Request) {
       requires2fa: is2faEnabled,
     });
   } catch (error: unknown) {
-    console.error("Login error:", error);
     if (error instanceof SecurityServiceUnavailable) {
       return NextResponse.json({ error: "حماية الدخول غير متاحة مؤقتًا. أعد المحاولة بعد قليل." }, { status: 503 });
     }
-    return NextResponse.json({ error: error instanceof Error ? error.message : "حدث خطأ" }, { status: 500 });
+    console.error("Login error", { errorName: error instanceof Error ? error.name : "UnknownError" });
+    return NextResponse.json({ error: "تعذر تسجيل الدخول حاليًا. حاول مرة أخرى بعد قليل." }, { status: 500 });
   }
 }
