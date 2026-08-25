@@ -82,7 +82,6 @@ async function buildServicesPayload(): Promise<ServicesPayload> {
   ]);
   const merged: ServiceRecord[] = catalog.map((service) => ({
     service: getPublicServiceId(service),
-    remote_service_id: service.remoteServiceId,
     name: service.name,
     nameAr: service.nameAr,
     description: service.description,
