@@ -34,14 +34,30 @@ async function loadActiveMethods(): Promise<DepositMethodRow[]> {
   if (methodsCacheRequest) return methodsCacheRequest;
 
   methodsCacheRequest = (async () => {
-    const result = await db.execute("SELECT * FROM payment_methods WHERE is_active = 1 ORDER BY id");
+    const result = await db.execute("SELECT id, name, name_en, icon, instructions, min_amount, is_active, is_auto, config FROM payment_methods WHERE is_active = 1 ORDER BY id");
     const methods = result.rows.map((row) => {
       const item = row as Record<string, unknown>;
+      let publicConfig = "{}";
+      try {
+        const config = JSON.parse(String(item.config || "{}")) as Record<string, unknown>;
+        publicConfig = JSON.stringify({
+          coin: typeof config.coin === "string" ? config.coin.trim().toLowerCase() : "",
+          network: typeof config.network === "string" ? config.network.trim().toLowerCase() : "",
+          address: typeof config.address === "string" ? config.address.trim() : "",
+        });
+      } catch {
+        publicConfig = "{}";
+      }
       return {
-        ...item,
         id: Number(item.id),
+        name: String(item.name || ""),
+        name_en: String(item.name_en || ""),
+        icon: String(item.icon || ""),
+        instructions: String(item.instructions || ""),
         min_amount: ["usdt", "bnb", "btc"].includes(String(item.icon || "").toLowerCase()) ? 1 : Number(item.min_amount),
         is_active: Number(item.is_active),
+        is_auto: Number(item.is_auto),
+        config: publicConfig,
       } as DepositMethodRow;
     });
     methodsCache = { methods, expiresAt: Date.now() + METHODS_CACHE_TTL_MS };
