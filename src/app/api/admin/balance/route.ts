@@ -14,21 +14,24 @@ type BalanceUserRow = {
 };
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "حدث خطأ";
+  return error instanceof Error ? error.message : "";
 }
 
 export async function POST(request: Request) {
   try {
     await requireAdmin();
     const { username, amount, type } = (await request.json()) as BalanceBody;
+    const normalizedUsername = String(username || "").trim();
+    const changeAmount = Number(amount);
+    const balanceType = type === "add" || type === "subtract" ? type : null;
 
-    if (!username || !amount || isNaN(Number(amount))) {
-      return NextResponse.json({ error: "جميع الحقول مطلوبة" }, { status: 400 });
+    if (!normalizedUsername || !Number.isFinite(changeAmount) || changeAmount <= 0 || changeAmount > 1_000_000 || !balanceType) {
+      return NextResponse.json({ error: "اسم المستخدم والمبلغ والنوع مطلوبون، والمبلغ يجب أن يكون موجبًا ومحدودًا" }, { status: 400 });
     }
 
     const userResult = await db.execute({
-      sql: "SELECT id, balance FROM users WHERE username = ?",
-      args: [username],
+      sql: "SELECT id, balance FROM users WHERE username = ? AND role != 'admin'",
+      args: [normalizedUsername],
     });
 
     if (userResult.rows.length === 0) {
@@ -38,42 +41,43 @@ export async function POST(request: Request) {
     const user = userResult.rows[0] as unknown as BalanceUserRow;
     const userId = Number(user.id);
     const currentBalance = Number(user.balance);
-    const changeAmount = Number(amount);
-
-    if (type === "subtract") {
-      if (currentBalance < changeAmount) {
-        return NextResponse.json({ error: "رصيد المستخدم غير كافٍ للخصم" }, { status: 400 });
-      }
-      await db.execute({
-        sql: "UPDATE users SET balance = balance - ? WHERE id = ?",
-        args: [changeAmount, userId],
-      });
-      await db.execute({
-        sql: "INSERT INTO transactions (user_id, type, amount, status, description) VALUES (?, ?, ?, ?, ?)",
-        args: [userId, "admin", -changeAmount, "completed", "خصم رصيد من الأدمن"],
-      });
-    } else {
-      await db.execute({
-        sql: "UPDATE users SET balance = balance + ? WHERE id = ?",
-        args: [changeAmount, userId],
-      });
-      await db.execute({
-        sql: "INSERT INTO transactions (user_id, type, amount, status, description) VALUES (?, ?, ?, ?, ?)",
-        args: [userId, "admin", changeAmount, "completed", "إضافة رصيد من الأدمن"],
-      });
+    if (!Number.isInteger(userId) || userId <= 0 || !Number.isFinite(currentBalance) || currentBalance < 0) {
+      return NextResponse.json({ error: "بيانات رصيد المستخدم غير صالحة" }, { status: 409 });
+    }
+    if (balanceType === "subtract" && currentBalance < changeAmount) {
+      return NextResponse.json({ error: "رصيد المستخدم غير كافٍ للخصم" }, { status: 400 });
     }
 
-    const updated = await db.execute({
-      sql: "SELECT balance FROM users WHERE id = ?",
-      args: [userId],
-    });
-
-    return NextResponse.json({
-      message: type === "subtract" ? "تم خصم الرصيد" : "تم إضافة الرصيد",
-      newBalance: Number((updated.rows[0] as unknown as Pick<BalanceUserRow, "balance">).balance),
-    });
+    const transaction = await db.transaction("write");
+    try {
+      const updated = await transaction.execute({
+        sql: balanceType === "subtract"
+          ? "UPDATE users SET balance = balance - ? WHERE id = ? AND role != 'admin' AND balance >= ?"
+          : "UPDATE users SET balance = balance + ? WHERE id = ? AND role != 'admin'",
+        args: balanceType === "subtract" ? [changeAmount, userId, changeAmount] : [changeAmount, userId],
+      });
+      if (Number(updated.rowsAffected || 0) !== 1) throw new Error("BALANCE_CONFLICT");
+      await transaction.execute({
+        sql: "INSERT INTO transactions (user_id, type, amount, status, description) VALUES (?, ?, ?, ?, ?)",
+        args: [userId, "admin", balanceType === "subtract" ? -changeAmount : changeAmount, "completed", balanceType === "subtract" ? "خصم رصيد من الأدمن" : "إضافة رصيد من الأدمن"],
+      });
+      const updatedRow = await transaction.execute({ sql: "SELECT balance FROM users WHERE id = ?", args: [userId] });
+      await transaction.commit();
+      const newBalance = Number((updatedRow.rows[0] as unknown as Pick<BalanceUserRow, "balance"> | undefined)?.balance);
+      if (!Number.isFinite(newBalance)) return NextResponse.json({ error: "تعذر قراءة الرصيد بعد التحديث" }, { status: 500 });
+      return NextResponse.json({
+        message: balanceType === "subtract" ? "تم خصم الرصيد" : "تم إضافة الرصيد",
+        newBalance,
+      });
+    } catch (error) {
+      await transaction.rollback().catch(() => undefined);
+      if (error instanceof Error && error.message === "BALANCE_CONFLICT") return NextResponse.json({ error: "تغيّر الرصيد أو لم يعد كافيًا؛ أعد المحاولة" }, { status: 409 });
+      throw error;
+    }
   } catch (error: unknown) {
-    console.error("Admin balance error:", error);
-    return NextResponse.json({ error: errorMessage(error) }, { status: 500 });
+    const message = errorMessage(error);
+    const status = message === "Unauthorized" ? 401 : message === "Forbidden" || message === "Account banned" ? 403 : 500;
+    if (status >= 500) console.error("Admin balance error:", error);
+    return NextResponse.json({ error: status === 401 ? "يرجى تسجيل الدخول" : status === 403 ? "غير مصرح" : "تعذر تحديث الرصيد" }, { status });
   }
 }

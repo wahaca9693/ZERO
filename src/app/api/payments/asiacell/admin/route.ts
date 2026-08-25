@@ -86,7 +86,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ error: "إجراء غير معروف" }, { status: 400 });
   } catch (error: unknown) {
-    console.error("[Asiacell Admin]", error);
+    if (authStatus(error) >= 500) console.error("[Asiacell Admin]", error);
     return authErrorResponse(error, "تعذر تنفيذ إجراء Asiacell");
   }
 }
