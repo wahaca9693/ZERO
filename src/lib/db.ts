@@ -243,6 +243,11 @@ const schemaStatements = [
     aiSupportUrl TEXT DEFAULT '',
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`,
+  `CREATE TABLE IF NOT EXISTS integration_secrets (
+    provider TEXT PRIMARY KEY,
+    ciphertext TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`,
   `CREATE TABLE IF NOT EXISTS updates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,

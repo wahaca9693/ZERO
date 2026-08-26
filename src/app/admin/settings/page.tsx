@@ -3,10 +3,12 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import DashboardLayout from "../../components/DashboardLayout";
-import { Activity, ArrowUpRight, Bell, Coins, FileSearch, Gift, Palette, Save, Settings2, ShieldCheck, Smartphone, Users, Wallet } from "lucide-react";
+import { Activity, ArrowUpRight, Bell, Coins, FileSearch, Gift, KeyRound, Loader2, Palette, Save, Settings2, ShieldCheck, Smartphone, Users, Wallet } from "lucide-react";
 
 type Check = { label: string; value: string; tone: string };
 type SiteForm = { siteName: string; siteDescription: string; defaultCurrency: string; cryptoMinAmount: string; asiacellMinAmount: string; apiV2Enabled: boolean; registrationEnabled: boolean };
+type OkxForm = { apiKey: string; secretKey: string; passphrase: string; baseUrl: string };
+type OkxStatus = { configured: boolean; source: "admin" | "environment" | "none"; updatedAt: string | null };
 
 const items = [
   { href: "/admin/providers", title: "الأرباح والتسعير", description: "النسب، السعر اليدوي، الدقة العشرية، والمزامنة", icon: Wallet, tone: "text-emerald-300 bg-emerald-500/10" },
@@ -30,13 +32,19 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [okxForm, setOkxForm] = useState<OkxForm>({ apiKey: "", secretKey: "", passphrase: "", baseUrl: "https://www.okx.com" });
+  const [okxStatus, setOkxStatus] = useState<OkxStatus>({ configured: false, source: "none", updatedAt: null });
+  const [okxLoading, setOkxLoading] = useState(true);
+  const [okxSaving, setOkxSaving] = useState(false);
+  const [okxMessage, setOkxMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
   useEffect(() => {
     let active = true;
     (async () => {
-      const [health, settings] = await Promise.allSettled([
+      const [health, settings, okx] = await Promise.allSettled([
         fetch("/api/health", { cache: "no-store" }).then((r) => r.ok),
         fetch("/api/settings", { cache: "no-store", credentials: "include" }).then(async (r) => ({ ok: r.ok, data: await r.json() })),
+        fetch("/api/admin/okx", { cache: "no-store", credentials: "include" }).then(async (r) => ({ ok: r.ok, data: await r.json() })),
       ]);
       if (!active) return;
       const settingsData = settings.status === "fulfilled" ? settings.value.data?.settings || {} : {};
@@ -49,12 +57,15 @@ export default function AdminSettingsPage() {
         apiV2Enabled: Boolean(settingsData.apiV2Enabled ?? true),
         registrationEnabled: Boolean(settingsData.registrationEnabled ?? true),
       });
+      const okxData = okx.status === "fulfilled" ? okx.value.data?.settings : null;
+      if (okxData) setOkxStatus({ configured: Boolean(okxData.configured), source: okxData.source === "admin" || okxData.source === "environment" ? okxData.source : "none", updatedAt: typeof okxData.updatedAt === "string" ? okxData.updatedAt : null });
       setChecks([
         { label: "قاعدة البيانات", value: health.status === "fulfilled" && health.value ? "متصلة" : "تحتاج مراجعة", tone: health.status === "fulfilled" && health.value ? "text-emerald-300" : "text-red-300" },
         { label: "إعدادات الموقع", value: settings.status === "fulfilled" && settings.value.ok ? "محمّلة بثبات" : "تحتاج مراجعة", tone: settings.status === "fulfilled" && settings.value.ok ? "text-emerald-300" : "text-red-300" },
         { label: "حماية لوحة الإدارة", value: "مفعّلة", tone: "text-emerald-300" },
       ]);
       setLoading(false);
+      setOkxLoading(false);
     })();
     return () => { active = false; };
   }, []);
@@ -74,6 +85,26 @@ export default function AdminSettingsPage() {
   };
 
   const set = (key: keyof SiteForm, value: string | boolean) => setForm((current) => ({ ...current, [key]: value }));
+  const setOkx = (key: keyof OkxForm, value: string) => setOkxForm((current) => ({ ...current, [key]: value }));
+
+  const manageOkx = async (action: "test" | "save" | "clear") => {
+    setOkxSaving(true); setOkxMessage(null);
+    try {
+      const response = await fetch("/api/admin/okx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action, ...okxForm }),
+      });
+      const data = await response.json().catch(() => ({})) as { error?: string; message?: string; settings?: OkxStatus };
+      if (!response.ok) throw new Error(data.error || "تعذر تنفيذ إجراء OKX");
+      if (data.settings) setOkxStatus(data.settings);
+      setOkxMessage({ text: data.message || (action === "test" ? "نجح اختبار OKX" : "تم حفظ إعداد OKX") });
+      if (action === "clear") setOkxForm({ apiKey: "", secretKey: "", passphrase: "", baseUrl: "https://www.okx.com" });
+    } catch (err) {
+      setOkxMessage({ text: err instanceof Error ? err.message : "تعذر تنفيذ إجراء OKX", error: true });
+    } finally { setOkxSaving(false); }
+  };
 
   return (
     <DashboardLayout>
@@ -81,6 +112,27 @@ export default function AdminSettingsPage() {
         <header className="glass-card rounded-3xl border border-[var(--color-border)] p-5 sm:p-6"><div className="flex items-start gap-3"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-gold)]/15 text-[var(--color-gold)]"><Settings2 size={25} /></span><div className="min-w-0"><h1 className="text-2xl font-black text-white">مركز إعدادات الإدارة</h1><p className="mt-1 text-xs leading-6 text-zinc-400">مكان موحد للتحكم في الأرباح، الشحن، المستخدمين، الأكواد، والمظهر. القراءة هنا لا تُنقص الأرصدة ولا تغيّر الإعدادات قبل الضغط على الحفظ.</p></div></div><div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">{checks.map((check) => <div key={check.label} className="rounded-2xl border border-[var(--color-border)] bg-black/10 p-3"><div className="flex items-center gap-2 text-[10px] text-zinc-500"><Activity size={13} />{check.label}</div><div className={`mt-1 text-sm font-black ${check.tone}`}>{check.value}</div></div>)}</div></header>
 
         <form onSubmit={save} className="glass-card rounded-2xl border border-[var(--color-border)] p-4 sm:p-5"><div className="mb-4 flex items-center gap-2"><Settings2 size={17} className="text-[var(--color-gold)]" /><h2 className="text-base font-black text-white">إعدادات الموقع والتشغيل</h2></div>{loading ? <div className="py-8 text-center text-xs text-zinc-500">جارٍ تحميل الإعدادات...</div> : <div className="grid gap-3 md:grid-cols-2"><label className="text-xs font-bold text-zinc-300">اسم الموقع<input value={form.siteName} readOnly aria-readonly="true" className="mt-1.5 w-full cursor-not-allowed rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm text-white/80 outline-none" maxLength={80} required /><small className="mt-1.5 block text-[10px] font-normal leading-5 text-zinc-500">هذا العرض للقراءة فقط لمنع تعارض النماذج. عدّل الاسم والوصف من <Link href="/admin/theme" className="font-bold text-[var(--color-gold)] hover:underline">صفحة الهوية المركزية</Link> ثم احفظ هناك.</small></label><label className="text-xs font-bold text-zinc-300">العملة الافتراضية<input value={form.defaultCurrency} onChange={(e) => set("defaultCurrency", e.target.value.toUpperCase())} className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm uppercase text-white outline-none focus:border-[var(--color-gold)]" maxLength={3} required /></label><label className="text-xs font-bold text-zinc-300 md:col-span-2">وصف الموقع<textarea value={form.siteDescription} readOnly aria-readonly="true" rows={2} maxLength={240} className="mt-1.5 w-full cursor-not-allowed resize-y rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm leading-6 text-white/80 outline-none" /><small className="mt-1.5 block text-[10px] font-normal text-zinc-500">وصف قصير يظهر في الهوية والصفحات العامة، ويُحدّث مع الاسم عند الحفظ.</small></label><label className="text-xs font-bold text-zinc-300">الحد الأدنى للكريبتو (USD)<input type="number" min="0" step="0.01" value={form.cryptoMinAmount} onChange={(e) => set("cryptoMinAmount", e.target.value)} className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm text-white outline-none focus:border-[var(--color-gold)]" /></label><label className="text-xs font-bold text-zinc-300">الحد الأدنى لـ Asiacell (USD)<input type="number" min="0" step="0.01" value={form.asiacellMinAmount} onChange={(e) => set("asiacellMinAmount", e.target.value)} className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm text-white outline-none focus:border-[var(--color-gold)]" /></label><label className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-black/10 p-3 text-xs font-bold text-zinc-300 md:col-span-2"><span><b className="block text-white">API v2 للمستخدمين</b><small className="mt-1 block text-[10px] font-normal text-zinc-500">تفعيل أو إيقاف استدعاء الخدمات من مفاتيح المستخدمين.</small></span><button type="button" onClick={() => set("apiV2Enabled", !form.apiV2Enabled)} className={`relative h-7 w-12 rounded-full transition ${form.apiV2Enabled ? "bg-[var(--color-gold)]" : "bg-zinc-700"}`} aria-label="تفعيل API v2"><span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${form.apiV2Enabled ? "right-1" : "right-6"}`} /></button></label><label className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-black/10 p-3 text-xs font-bold text-zinc-300 md:col-span-2"><span><b className="block text-white">السماح بالتسجيل الجديد</b><small className="mt-1 block text-[10px] font-normal text-zinc-500">عند الإيقاف لن يتمكن الزوار من إنشاء حسابات جديدة، مع بقاء الحسابات الحالية دون تغيير.</small></span><button type="button" onClick={() => set("registrationEnabled", !form.registrationEnabled)} className={`relative h-7 w-12 rounded-full transition ${form.registrationEnabled ? "bg-[var(--color-gold)]" : "bg-zinc-700"}`} aria-label="السماح بالتسجيل"><span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${form.registrationEnabled ? "right-1" : "right-6"}`} /></button></label></div>}{message && <div className="mt-3 rounded-xl bg-emerald-500/10 p-3 text-xs font-bold text-emerald-300">{message}</div>}{error && <div className="mt-3 rounded-xl bg-red-500/10 p-3 text-xs font-bold text-red-300">{error}</div>}<button disabled={saving || loading} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-deep)] py-3 text-sm font-black text-black disabled:opacity-50"><Save size={16} />{saving ? "جاري الحفظ..." : "حفظ الإعدادات"}</button></form>
+
+        <section className="glass-card rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4 sm:p-5">
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cyan-500/15 text-cyan-300"><KeyRound size={21} /></span>
+            <div className="min-w-0 flex-1"><h2 className="text-base font-black text-white">ربط OKX للتحقق من الإيداعات</h2><p className="mt-1 text-xs leading-6 text-zinc-400">أدخل بيانات API بصلاحية القراءة فقط. تُحفظ القيم مشفّرة على الخادم ولا تُعاد إلى المتصفح أو سجل التدقيق.</p></div>
+            <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ${okxStatus.configured ? "bg-emerald-500/15 text-emerald-300" : "bg-zinc-500/15 text-zinc-400"}`}>{okxLoading ? "جارٍ الفحص" : okxStatus.configured ? "مهيأ" : "غير مهيأ"}</span>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <label className="text-xs font-bold text-zinc-300">OKX API Key<input type="text" value={okxForm.apiKey} onChange={(e) => setOkx("apiKey", e.target.value)} autoComplete="off" placeholder={okxStatus.configured ? "مخزن — اتركه فارغًا للإبقاء عليه" : "أدخل API Key"} className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm text-white outline-none focus:border-cyan-300" /></label>
+            <label className="text-xs font-bold text-zinc-300">OKX API Secret<input type="password" value={okxForm.secretKey} onChange={(e) => setOkx("secretKey", e.target.value)} autoComplete="new-password" placeholder={okxStatus.configured ? "مخزن — اتركه فارغًا للإبقاء عليه" : "أدخل Secret Key"} className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm text-white outline-none focus:border-cyan-300" /></label>
+            <label className="text-xs font-bold text-zinc-300">OKX API Passphrase<input type="password" value={okxForm.passphrase} onChange={(e) => setOkx("passphrase", e.target.value)} autoComplete="new-password" placeholder={okxStatus.configured ? "مخزن — اتركه فارغًا للإبقاء عليه" : "أدخل Passphrase"} className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm text-white outline-none focus:border-cyan-300" /></label>
+            <label className="text-xs font-bold text-zinc-300">عنوان OKX API<input type="url" value={okxForm.baseUrl} onChange={(e) => setOkx("baseUrl", e.target.value)} placeholder="https://www.okx.com" className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm text-white outline-none focus:border-cyan-300" /></label>
+          </div>
+          <p className="mt-3 text-[10px] leading-5 text-zinc-500">المصدر الحالي: {okxLoading ? "جارٍ القراءة" : okxStatus.source === "admin" ? "إعداد محفوظ من لوحة الإدارة" : okxStatus.source === "environment" ? "متغيرات بيئة الخادم" : "لا يوجد إعداد"}. لا تمنح المفتاح صلاحية التداول أو السحب.</p>
+          {okxMessage && <div role="status" aria-live="polite" className={`mt-3 rounded-xl p-3 text-xs font-bold ${okxMessage.error ? "bg-red-500/10 text-red-300" : "bg-emerald-500/10 text-emerald-300"}`}>{okxMessage.text}</div>}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" disabled={okxSaving || okxLoading} onClick={() => manageOkx("test")} className="flex items-center gap-2 rounded-xl border border-cyan-300/30 px-4 py-2.5 text-xs font-black text-cyan-200 transition hover:bg-cyan-300/10 disabled:opacity-50">{okxSaving ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />} اختبار القراءة</button>
+            <button type="button" disabled={okxSaving || okxLoading} onClick={() => manageOkx("save")} className="flex items-center gap-2 rounded-xl bg-cyan-300 px-4 py-2.5 text-xs font-black text-slate-950 transition hover:bg-cyan-200 disabled:opacity-50"><Save size={15} /> حفظ وربط</button>
+            <button type="button" disabled={okxSaving || okxLoading || okxStatus.source !== "admin"} onClick={() => manageOkx("clear")} className="rounded-xl border border-red-300/20 px-4 py-2.5 text-xs font-bold text-red-300 transition hover:bg-red-300/10 disabled:opacity-50">حذف إعداد لوحة الإدارة</button>
+          </div>
+        </section>
 
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{items.map(({ href, title, description, icon: Icon, tone }) => <Link key={href} href={href} className="glass-card group rounded-2xl border border-[var(--color-border)] p-4 transition hover:-translate-y-0.5 hover:border-[var(--color-gold)]/50"><div className="flex items-start gap-3"><span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tone}`}><Icon size={20} /></span><span className="min-w-0"><b className="block text-sm font-black text-white">{title}</b><small className="mt-1 block text-[10px] leading-5 text-zinc-500">{description}</small></span><ArrowUpRight size={15} className="mr-auto shrink-0 text-zinc-600 transition group-hover:text-[var(--color-gold)]" /></div></Link>)}</section>
 
