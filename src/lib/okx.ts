@@ -95,16 +95,16 @@ function decryptConfig(ciphertext: unknown): OkxConfig | null {
 }
 
 export async function getOkxConfig(): Promise<OkxConfig> {
+  const envConfig = environmentConfig();
+  if (envConfig) return envConfig;
   try {
     const stored = await db.execute({ sql: "SELECT ciphertext FROM integration_secrets WHERE provider = ? LIMIT 1", args: [SECRET_PROVIDER] });
     const databaseConfig = decryptConfig((stored.rows[0] as { ciphertext?: unknown } | undefined)?.ciphertext);
     if (databaseConfig) return databaseConfig;
   } catch {
-    // Environment variables remain a safe fallback if the optional Admin storage is unavailable.
+    // The caller receives a safe configuration error if neither source is usable.
   }
-  const envConfig = environmentConfig();
-  if (!envConfig) throw new OkxConfigurationError();
-  return envConfig;
+  throw new OkxConfigurationError();
 }
 
 export async function getOkxConfigStatus() {
@@ -117,7 +117,8 @@ export async function getOkxConfigStatus() {
     updatedAt = typeof row?.updated_at === "string" ? row.updated_at : null;
   } catch {}
   const envConfigured = Boolean(environmentConfig());
-  return { configured: databaseConfigured || envConfigured, source: databaseConfigured ? "admin" : envConfigured ? "environment" : "none", updatedAt } as const;
+  const source = envConfigured ? "environment" : databaseConfigured ? "admin" : "none";
+  return { configured: envConfigured || databaseConfigured, source, updatedAt: source === "admin" ? updatedAt : null } as const;
 }
 
 async function mergedConfig(input?: Partial<OkxConfig>) {
