@@ -11,6 +11,7 @@ import {
   ShoppingCart,
   Zap,
   Wallet,
+  Coins,
   History,
   Bell,
   ClipboardList,
@@ -264,6 +265,7 @@ export default function Sidebar({ open, onClose, user }: SidebarProps) {
                   { label: "المزودون والخدمات", description: getDescription("adminProviders", "ربط المزودين وإدارة الكتالوج"), href: "/admin/providers", icon: Boxes },
                   { label: "إدارة مفاتيح API", description: getDescription("adminKeys", "تعطيل أو حذف مفاتيح المستخدمين"), href: "/admin/api-keys", icon: KeyRound },
                   { label: "إيداعات الكريبتو", description: getDescription("crypto", "مراجعة الإيداعات وحالتها"), href: "/admin/crypto", icon: Wallet },
+                  { label: "إعدادات OKX", description: "ربط القراءة والتحقق من الإيداعات", href: "/admin/settings#okx-settings", icon: Coins },
                   { label: "شحن Asiacell", description: getDescription("asiacell", "مراجعة طلبات الشحن المحلية"), href: "/admin/asiacell", icon: Wallet },
                   { label: "المجاني والهدايا", description: getDescription("freeAdmin", "تخصيص الخدمات المجانية"), href: "/admin/free-services", icon: Gift },
                   { label: "أكواد الهدايا", description: getDescription("giftCodes", "إنشاء وإدارة أكواد الرصيد"), href: "/admin/gift-codes", icon: Gift },
@@ -275,7 +277,8 @@ export default function Sidebar({ open, onClose, user }: SidebarProps) {
                   { label: "الأزرار المخصصة", description: getDescription("navigation", "إضافة أو تعديل أو حذف روابط آمنة"), href: "/admin/navigation", icon: Sparkles },
                   { label: "إعدادات الإدارة", description: getDescription("adminSettings", "ضبط إعدادات التشغيل العامة"), href: "/admin/settings", icon: Settings },
                 ].map((item) => {
-                  const active = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(`${item.href}/`));
+                  const itemPath = item.href.split("#")[0];
+                  const active = pathname === itemPath || (itemPath !== "/admin" && pathname.startsWith(`${itemPath}/`));
                   const Icon = item.icon;
                   return (
                     <Link
