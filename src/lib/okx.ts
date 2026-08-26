@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import { db } from "@/lib/db";
 
-const DEFAULT_OKX_BASE_URL = "https://www.okx.com";
+const DEFAULT_OKX_BASE_URL = "https://openapi.okx.com";
+const ALLOWED_OKX_HOSTS = new Set(["openapi.okx.com", "us.okx.com", "eea.okx.com", "www.okx.com"]);
 const OKX_TIMEOUT_MS = 8_000;
 const SECRET_PROVIDER = "okx";
 
@@ -38,9 +39,24 @@ export class OkxConfigurationError extends Error {
 }
 
 export class OkxRequestError extends Error {
-  constructor() {
+  readonly code: string | null;
+
+  constructor(code?: string) {
     super("OKX_REQUEST_FAILED");
     this.name = "OkxRequestError";
+    this.code = code && /^[0-9]{5}$/.test(code) ? code : null;
+  }
+}
+
+function normalizeBaseUrl(value: unknown) {
+  const raw = typeof value === "string" && value.trim() ? value.trim() : DEFAULT_OKX_BASE_URL;
+  try {
+    const url = new URL(raw);
+    const hostname = url.hostname.toLowerCase();
+    if (url.protocol !== "https:" || url.username || url.password || url.pathname !== "/" || url.search || url.hash || !ALLOWED_OKX_HOSTS.has(hostname)) return null;
+    return `https://${hostname === "www.okx.com" ? "openapi.okx.com" : hostname}`;
+  } catch {
+    return null;
   }
 }
 
@@ -48,9 +64,8 @@ function normalizeConfig(input: Partial<OkxConfig>): OkxConfig | null {
   const apiKey = input.apiKey?.trim();
   const secretKey = input.secretKey?.trim();
   const passphrase = input.passphrase?.trim();
-  const baseUrl = (input.baseUrl?.trim() || DEFAULT_OKX_BASE_URL).replace(/\/$/, "");
-  if (!apiKey || apiKey.length > 200 || !secretKey || secretKey.length > 512 || !passphrase || passphrase.length > 512) return null;
-  if (baseUrl.length > 200 || !/^https:\/\//i.test(baseUrl)) return null;
+  const baseUrl = normalizeBaseUrl(input.baseUrl);
+  if (!apiKey || apiKey.length > 200 || !secretKey || secretKey.length > 512 || !passphrase || passphrase.length > 512 || !baseUrl) return null;
   return { apiKey, secretKey, passphrase, baseUrl };
 }
 
@@ -183,7 +198,8 @@ async function requestOkx(query: Record<string, string>, configOverride?: OkxCon
       signal: controller.signal,
     });
     const payload = await response.json().catch(() => ({})) as OkxResponse;
-    if (!response.ok || String(payload.code || "") !== "0") throw new OkxRequestError();
+    const providerCode = typeof payload.code === "string" ? payload.code : undefined;
+    if (!response.ok || providerCode !== "0") throw new OkxRequestError(providerCode);
     return Array.isArray(payload.data) ? payload.data.map((item) => asRecord(item) as OkxDepositRecord) : [];
   } catch (error) {
     if (error instanceof OkxConfigurationError || error instanceof OkxRequestError) throw error;

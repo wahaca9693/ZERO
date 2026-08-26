@@ -20,8 +20,8 @@ function json(data: unknown, status = 200) {
   });
 }
 
-function value(input: unknown, maxLength: number) {
-  return typeof input === "string" ? input.trim().slice(0, maxLength) : "";
+function value(input: unknown) {
+  return typeof input === "string" ? input.trim() : "";
 }
 
 function publicStatus(status: Awaited<ReturnType<typeof getOkxConfigStatus>>) {
@@ -46,8 +46,10 @@ export async function GET() {
     return json({ settings: publicStatus(await getOkxConfigStatus()) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
-    if (message === "Unauthorized") return json({ error: "يرجى تسجيل الدخول" }, 401);
-    if (message === "Forbidden") return json({ error: "غير مصرح" }, 403);
+    if (message === "Unauthorized") return json({ error: "يرجى تسجيل الدخول بحساب Admin ثم إعادة المحاولة." }, 401);
+    if (message === "Forbidden") return json({ error: "الحساب الحالي ليس Admin. سجّل الخروج ثم ادخل بحساب Admin الصحيح." }, 403);
+    if (message === "2FA_REQUIRED") return json({ error: "أكمل تحقق رمز الأمان لحساب Admin ثم أعد المحاولة." }, 403);
+    if (message === "Account banned") return json({ error: "حساب Admin محظور حاليًا." }, 403);
     return json({ error: "تعذر قراءة إعداد OKX" }, 500);
   }
 }
@@ -56,12 +58,12 @@ export async function POST(request: Request) {
   try {
     const admin = await requireAdmin();
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
-    const action = value(body.action, 20).toLowerCase() || "save";
+    const action = value(body.action).toLowerCase() || "save";
     const input = {
-      apiKey: value(body.apiKey, 200),
-      secretKey: value(body.secretKey, 512),
-      passphrase: value(body.passphrase, 512),
-      baseUrl: value(body.baseUrl, 200),
+      apiKey: value(body.apiKey),
+      secretKey: value(body.secretKey),
+      passphrase: value(body.passphrase),
+      baseUrl: value(body.baseUrl),
     };
 
     if (action === "clear") {
@@ -82,10 +84,15 @@ export async function POST(request: Request) {
     return json({ success: true, settings: publicStatus(status), message: "تم حفظ إعداد OKX المشفّر ونجح اختبار القراءة." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
-    if (message === "Unauthorized") return json({ error: "يرجى تسجيل الدخول" }, 401);
-    if (message === "Forbidden") return json({ error: "غير مصرح" }, 403);
-    if (error instanceof OkxConfigurationError) return json({ error: "أدخل API Key وSecret Key وPassphrase صحيحة، أو أضفها أولًا في متغيرات البيئة." }, 400);
-    if (error instanceof OkxRequestError) return json({ error: "فشل اختبار القراءة من OKX. تحقق من المفتاح والصلاحيات والـPassphrase والـIP whitelist." }, 502);
+    if (message === "Unauthorized") return json({ error: "يرجى تسجيل الدخول بحساب Admin ثم إعادة المحاولة." }, 401);
+    if (message === "Forbidden") return json({ error: "الحساب الحالي ليس Admin. سجّل الخروج ثم ادخل بحساب Admin الصحيح." }, 403);
+    if (message === "2FA_REQUIRED") return json({ error: "أكمل تحقق رمز الأمان لحساب Admin ثم أعد المحاولة." }, 403);
+    if (message === "Account banned") return json({ error: "حساب Admin محظور حاليًا." }, 403);
+    if (error instanceof OkxConfigurationError) return json({ error: "أدخل API Key وSecret Key وPassphrase صحيحة، أو أضف INTEGRATION_SECRETS_KEY في Vercel أولًا." }, 400);
+    if (error instanceof OkxRequestError) {
+      const detail = error.code === "50101" ? "بيانات اعتماد OKX غير صحيحة." : error.code === "50102" ? "وقت خادم التطبيق غير متزامن مع OKX." : error.code === "50103" ? "صلاحية API لا تسمح بهذا الطلب." : "تحقق من المفتاح والصلاحيات والـPassphrase والـIP whitelist وعنوان REST الإقليمي.";
+      return json({ error: `فشل اختبار القراءة من OKX: ${detail}` }, 502);
+    }
     console.error("Admin OKX configuration failed", error instanceof Error ? error.name : "UnknownError");
     return json({ error: "تعذر حفظ إعداد OKX حاليًا" }, 500);
   }

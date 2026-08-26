@@ -32,7 +32,7 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [okxForm, setOkxForm] = useState<OkxForm>({ apiKey: "", secretKey: "", passphrase: "", baseUrl: "https://www.okx.com" });
+  const [okxForm, setOkxForm] = useState<OkxForm>({ apiKey: "", secretKey: "", passphrase: "", baseUrl: "https://openapi.okx.com" });
   const [okxStatus, setOkxStatus] = useState<OkxStatus>({ configured: false, source: "none", updatedAt: null });
   const [okxLoading, setOkxLoading] = useState(true);
   const [okxSaving, setOkxSaving] = useState(false);
@@ -100,7 +100,7 @@ export default function AdminSettingsPage() {
       if (!response.ok) throw new Error(data.error || "تعذر تنفيذ إجراء OKX");
       if (data.settings) setOkxStatus(data.settings);
       setOkxMessage({ text: data.message || (action === "test" ? "نجح اختبار OKX" : "تم حفظ إعداد OKX") });
-      if (action === "clear") setOkxForm({ apiKey: "", secretKey: "", passphrase: "", baseUrl: "https://www.okx.com" });
+      if (action === "clear") setOkxForm({ apiKey: "", secretKey: "", passphrase: "", baseUrl: "https://openapi.okx.com" });
     } catch (err) {
       setOkxMessage({ text: err instanceof Error ? err.message : "تعذر تنفيذ إجراء OKX", error: true });
     } finally { setOkxSaving(false); }
@@ -123,7 +123,7 @@ export default function AdminSettingsPage() {
             <label className="text-xs font-bold text-zinc-300">OKX API Key<input type="text" value={okxForm.apiKey} onChange={(e) => setOkx("apiKey", e.target.value)} autoComplete="off" placeholder={okxStatus.configured ? "مخزن — اتركه فارغًا للإبقاء عليه" : "أدخل API Key"} className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm text-white outline-none focus:border-cyan-300" /></label>
             <label className="text-xs font-bold text-zinc-300">OKX API Secret<input type="password" value={okxForm.secretKey} onChange={(e) => setOkx("secretKey", e.target.value)} autoComplete="new-password" placeholder={okxStatus.configured ? "مخزن — اتركه فارغًا للإبقاء عليه" : "أدخل Secret Key"} className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm text-white outline-none focus:border-cyan-300" /></label>
             <label className="text-xs font-bold text-zinc-300">OKX API Passphrase<input type="password" value={okxForm.passphrase} onChange={(e) => setOkx("passphrase", e.target.value)} autoComplete="new-password" placeholder={okxStatus.configured ? "مخزن — اتركه فارغًا للإبقاء عليه" : "أدخل Passphrase"} className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm text-white outline-none focus:border-cyan-300" /></label>
-            <label className="text-xs font-bold text-zinc-300">عنوان OKX API<input type="url" value={okxForm.baseUrl} onChange={(e) => setOkx("baseUrl", e.target.value)} placeholder="https://www.okx.com" className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm text-white outline-none focus:border-cyan-300" /></label>
+            <label className="text-xs font-bold text-zinc-300">عنوان OKX API<input type="url" value={okxForm.baseUrl} onChange={(e) => setOkx("baseUrl", e.target.value)} placeholder="https://openapi.okx.com" className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 text-sm text-white outline-none focus:border-cyan-300" /></label>
           </div>
           <p className="mt-3 text-[10px] leading-5 text-zinc-500">المصدر الحالي: {okxLoading ? "جارٍ القراءة" : okxStatus.source === "admin" ? "إعداد محفوظ من لوحة الإدارة" : okxStatus.source === "environment" ? "متغيرات بيئة الخادم" : "لا يوجد إعداد"}. لا تمنح المفتاح صلاحية التداول أو السحب.</p>
           {okxMessage && <div role="status" aria-live="polite" className={`mt-3 rounded-xl p-3 text-xs font-bold ${okxMessage.error ? "bg-red-500/10 text-red-300" : "bg-emerald-500/10 text-emerald-300"}`}>{okxMessage.text}</div>}
