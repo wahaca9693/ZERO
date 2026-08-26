@@ -139,7 +139,7 @@ export async function POST(request: Request) {
       if (!coin || !network || !address) {
         return json({ error: "طريقة الدفع غير مكتملة الإعداد من الإدارة" }, { status: 503 });
       }
-      cryptoInfo = { coin, network, address };
+      cryptoInfo = { coin, network, address, orderId: `OKX-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}` };
 
       if (typeof notes === "string" && notes.trim().startsWith("{")) {
         try {
@@ -174,7 +174,7 @@ export async function POST(request: Request) {
             price_currency: "usd",
             pay_currency: payCurrency,
             order_id: orderId,
-            order_description: `smmnine deposit for user ${session.userId}`,
+            order_description: `Trendcom deposit for user ${session.userId}`,
             ipn_callback_url: `${appUrl}/api/payments/nowpayments/ipn`,
           }),
           cache: "no-store",
@@ -209,16 +209,13 @@ export async function POST(request: Request) {
       });
     }
 
-    const autoEnabled = Number(method.is_auto || 0) === 1;
     return json({
       message: cryptoInfo
         ? cryptoInfo.paymentId
           ? "تم إنشاء عنوان الدفع. أرسل المبلغ المطلوب، وسيُضاف الرصيد تلقائيًا بعد تأكيد IPN الموقّع."
-          : autoEnabled
-            ? "تم إنشاء طلب الشحن. سيبقى الرصيد معلقًا حتى تأكيد الدفع عبر بوابة الدفع."
-            : "تم تسجيل طلب الشحن. سيبقى الرصيد معلقًا حتى مراجعة الإيداع من الإدارة."
+          : `تم إنشاء طلب الشحن برقم ${cryptoInfo.orderId}. أرسل المبلغ ثم استخدم TxID للتحقق.`
         : "تم إرسال طلب الشحن، وسيتم مراجعته قريبًا.",
-      payment: cryptoInfo?.paymentId
+      payment: cryptoInfo
         ? { payment_id: cryptoInfo.paymentId, order_id: cryptoInfo.orderId, pay_address: cryptoInfo.address, pay_amount: cryptoInfo.payAmount, pay_currency: cryptoInfo.payCurrency }
         : undefined,
     });

@@ -446,6 +446,7 @@ const schemaStatements = [
 
 const indexStatements = [
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_crypto_deposits_payment_id ON crypto_deposits(payment_id) WHERE payment_id IS NOT NULL`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_crypto_deposits_verification_txid ON crypto_deposits(verification_txid) WHERE verification_txid IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS idx_provider_services_provider ON provider_services(provider_id)`,
   `CREATE INDEX IF NOT EXISTS idx_provider_services_provider_remote ON provider_services(provider_id, remote_service_id)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_provider_services_provider_remote_unique ON provider_services(provider_id, remote_service_id)`,
@@ -514,6 +515,10 @@ const schemaMigrations: SchemaMigration[] = [
       ["pay_currency", "TEXT"],
       ["ipn_received_at", "DATETIME"],
       ["confirmed_at", "DATETIME"],
+      ["verification_txid", "TEXT"],
+      ["verification_status", "TEXT"],
+      ["verification_note", "TEXT"],
+      ["verified_at", "DATETIME"],
     ],
   },
   {

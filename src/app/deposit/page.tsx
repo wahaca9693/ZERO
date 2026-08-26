@@ -55,7 +55,11 @@ export default function DepositPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
-  const [paymentInfo, setPaymentInfo] = useState<{ pay_address?: string; pay_amount?: number; pay_currency?: string; payment_id?: string } | null>(null);
+  const [paymentInfo, setPaymentInfo] = useState<{ pay_address?: string; pay_amount?: number; pay_currency?: string; payment_id?: string; order_id?: string } | null>(null);
+  const [txId, setTxId] = useState("");
+  const [verifyAmount, setVerifyAmount] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState<{ text: string; error?: boolean } | null>(null);
   const [asiacell, setAsiacell] = useState<{ connected: boolean; store_phone?: string; exchange_rate?: number }>({ connected: false });
   const [asiacellOpen, setAsiacellOpen] = useState(false);
   const [giftCode, setGiftCode] = useState("");
@@ -160,11 +164,34 @@ export default function DepositPage() {
     finally { setRedeemingGift(false); }
   };
 
+  const verifyDeposit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paymentInfo?.order_id || paymentInfo.payment_id || !txId.trim() || !verifyAmount || verifying) return;
+    setVerifying(true);
+    setVerificationMessage(null);
+    try {
+      const response = await fetch("/api/deposit/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ orderId: paymentInfo.order_id, txId: txId.trim(), amount: verifyAmount }),
+      });
+      const data = await response.json().catch(() => ({})) as { error?: string; message?: string; balance?: number; pending?: boolean };
+      if (!response.ok) throw new Error(data.error || "تعذر التحقق من التحويل");
+      setVerificationMessage({ text: data.message || (data.pending ? "المعاملة قيد التأكيد" : "تم التحقق من التحويل") });
+      if (typeof data.balance === "number") setBalance(data.balance);
+    } catch (error) {
+      setVerificationMessage({ text: error instanceof Error ? error.message : "تعذر التحقق من التحويل", error: true });
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selected || !amount) return;
     const num = Number(amount);
-    if (isNaN(num) || num < selectedMinimum) {
+    if (!Number.isFinite(num) || num < selectedMinimum) {
       setMessage({ text: `الحد الأدنى للشحن ${selectedMinimum.toFixed(2)} دولار`, error: true });
       return;
     }
@@ -183,8 +210,13 @@ export default function DepositPage() {
     await refreshData();
     if (data.error) setMessage({ text: data.error, error: true });
     else {
-      if (data.payment) setPaymentInfo(data.payment);
-      setMessage({ text: data.message || (Number(selected.is_auto) === 1 ? "تم إنشاء طلب الشحن — سيُحدّث الرصيد بعد تأكيد بوابة الدفع" : "تم تسجيل طلب الشحن — سيبقى معلقًا حتى مراجعة الإيداع من الإدارة"), error: false });
+      if (data.payment) {
+        setPaymentInfo(data.payment);
+        setVerifyAmount(String(data.payment.pay_amount || amount));
+      }
+      setVerificationMessage(null);
+      setTxId("");
+      setMessage({ text: data.message || (Number(selected.is_auto) === 1 ? "تم إنشاء طلب الشحن — سيُحدّث الرصيد بعد تأكيد بوابة الدفع" : "تم تسجيل طلب الشحن — سيبقى معلقًا حتى تأكيد التحويل"), error: false });
       setSubmitted(true);
     }
   };
@@ -244,7 +276,7 @@ export default function DepositPage() {
             {cryptoMethods.map((m) => (
               <button
                 key={m.id}
-                onClick={() => { setSelected(m); setPaymentInfo(null); setSubmitted(false); setMessage(null); }}
+                onClick={() => { setSelected(m); setPaymentInfo(null); setSubmitted(false); setMessage(null); setTxId(""); setVerifyAmount(""); setVerificationMessage(null); }}
                 className={`relative flex flex-col items-center gap-1 rounded-2xl border p-3 transition ${
                   selected?.id === m.id
                     ? "border-[var(--color-gold)]/60 bg-[var(--color-gold)]/10 shadow-[0_0_24px_-8px_rgba(255,215,0,0.5)]"
@@ -280,7 +312,7 @@ export default function DepositPage() {
             ))}
             <button
               type="button"
-              onClick={() => { setAsiacellOpen((open) => !open); setSelected(null); setPaymentInfo(null); setMessage(null); setSubmitted(false); }}
+              onClick={() => { setAsiacellOpen((open) => !open); setSelected(null); setPaymentInfo(null); setMessage(null); setSubmitted(false); setTxId(""); setVerifyAmount(""); setVerificationMessage(null); }}
               className={`relative flex min-h-[148px] flex-col items-center justify-center gap-1 rounded-2xl border p-3 text-center transition sm:min-h-[164px] ${asiacellOpen ? "border-[var(--color-gold)]/70 bg-[var(--color-gold)]/12 shadow-[0_0_24px_-8px_rgba(255,215,0,0.55)]" : "glass-card hover:border-[var(--color-gold)]/45"}`}
             >
               {asiacellOpen && <span className="absolute -top-1.5 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-[var(--color-gold-bright)] to-[var(--color-gold)] text-black"><Check size={12} strokeWidth={4} /></span>}
@@ -344,10 +376,11 @@ export default function DepositPage() {
 
             <form onSubmit={submit} className="space-y-3">
               <div>
-                <label className="mb-1 block text-sm font-bold text-zinc-400">المبلغ (بالدولار)</label>
+                <label className="mb-1 block text-sm font-bold text-zinc-400">{selectedIsCrypto ? "المبلغ المطلوب (USDT)" : "المبلغ (بالدولار)"}</label>
                 <input
                   type="number"
-                  step="0.01"
+                  step={selectedIsCrypto ? "0.000001" : "0.01"}
+                  min={selectedMinimum}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder={`الحد الأدنى ${selectedMinimum.toFixed(2)} دولار` + (paymentInfo?.pay_amount ? ` · المطلوب ${paymentInfo.pay_amount} ${paymentInfo.pay_currency || ""}` : "")}
@@ -365,6 +398,28 @@ export default function DepositPage() {
                 </button>
               )}
             </form>
+
+            {submitted && selectedIsCrypto && paymentInfo?.order_id && !paymentInfo.payment_id && (
+              <form onSubmit={verifyDeposit} className="space-y-3 rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5 p-4" aria-label="التحقق من تحويل OKX">
+                <div className="flex items-start gap-2">
+                  <ShieldCheck size={17} className="mt-0.5 shrink-0 text-[var(--color-gold)]" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-black text-white">تحقق من التحويل بعد الإرسال</p>
+                    <p className="mt-1 text-[10px] leading-5 text-zinc-400">بعد وصول التحويل إلى العنوان، أدخل TxID والمبلغ الفعلي. سيطابق النظام العملية مع OKX قبل إضافة أي رصيد.</p>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-[var(--color-border)] bg-black/20 px-3 py-2 text-xs font-bold text-zinc-300">
+                  <span>رقم طلب الشحن: </span><code dir="ltr" className="break-all text-[var(--color-gold)]">{paymentInfo.order_id}</code>
+                </div>
+                <label className="block text-xs font-bold text-zinc-300">رقم المعاملة TxID / Hash<input required minLength={20} maxLength={256} value={txId} onChange={(event) => setTxId(event.target.value.trim())} dir="ltr" inputMode="text" placeholder="0x... أو TXID..." className="input-luxe mt-2 w-full rounded-xl px-3 py-3 text-left font-mono text-xs text-white" /></label>
+                <label className="block text-xs font-bold text-zinc-300">المبلغ المحول فعليًا (USDT)<input required type="number" min="0.000001" step="0.000001" value={verifyAmount} onChange={(event) => setVerifyAmount(event.target.value)} inputMode="decimal" placeholder="مثال: 5.00" className="input-luxe mt-2 w-full rounded-xl px-3 py-3 text-white" /></label>
+                <button type="submit" disabled={verifying || txId.trim().length < 20 || !verifyAmount} className="btn-gold flex w-full items-center justify-center gap-2 rounded-xl py-3.5 disabled:opacity-50">
+                  {verifying ? <Loader2 size={17} className="animate-spin" /> : <ShieldCheck size={17} />}
+                  {verifying ? "جارٍ التحقق من OKX..." : "تحقق من التحويل"}
+                </button>
+                {verificationMessage && <div role="status" aria-live="polite" className={`rounded-xl p-3 text-xs font-bold ${verificationMessage.error ? "bg-red-500/10 text-red-300" : "bg-green-500/10 text-green-300"}`}>{verificationMessage.text}</div>}
+              </form>
+            )}
 
             <div className="rounded-xl border border-[var(--color-gold)]/15 bg-[var(--color-gold)]/5 p-3 text-[11px] leading-relaxed text-zinc-400">
               <div className="mb-1.5 flex items-center gap-1.5 font-black text-[var(--color-gold-pale)]">
