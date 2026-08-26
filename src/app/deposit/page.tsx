@@ -57,7 +57,6 @@ export default function DepositPage() {
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<{ pay_address?: string; pay_amount?: number; pay_currency?: string; payment_id?: string; order_id?: string } | null>(null);
   const [txId, setTxId] = useState("");
-  const [verifyAmount, setVerifyAmount] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [verificationMessage, setVerificationMessage] = useState<{ text: string; error?: boolean } | null>(null);
   const [asiacell, setAsiacell] = useState<{ connected: boolean; store_phone?: string; exchange_rate?: number }>({ connected: false });
@@ -166,7 +165,7 @@ export default function DepositPage() {
 
   const verifyDeposit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!paymentInfo?.order_id || paymentInfo.payment_id || !txId.trim() || !verifyAmount || verifying) return;
+    if (!paymentInfo?.order_id || paymentInfo.payment_id || !txId.trim() || verifying) return;
     setVerifying(true);
     setVerificationMessage(null);
     try {
@@ -174,7 +173,7 @@ export default function DepositPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ orderId: paymentInfo.order_id, txId: txId.trim(), amount: verifyAmount }),
+        body: JSON.stringify({ orderId: paymentInfo.order_id, txId: txId.trim() }),
       });
       const data = await response.json().catch(() => ({})) as { error?: string; message?: string; balance?: number; pending?: boolean };
       if (!response.ok) throw new Error(data.error || "تعذر التحقق من التحويل");
@@ -212,7 +211,6 @@ export default function DepositPage() {
     else {
       if (data.payment) {
         setPaymentInfo(data.payment);
-        setVerifyAmount(String(data.payment.pay_amount || amount));
       }
       setVerificationMessage(null);
       setTxId("");
@@ -276,7 +274,7 @@ export default function DepositPage() {
             {cryptoMethods.map((m) => (
               <button
                 key={m.id}
-                onClick={() => { setSelected(m); setPaymentInfo(null); setSubmitted(false); setMessage(null); setTxId(""); setVerifyAmount(""); setVerificationMessage(null); }}
+                onClick={() => { setSelected(m); setPaymentInfo(null); setSubmitted(false); setMessage(null); setTxId(""); setVerificationMessage(null); }}
                 className={`relative flex flex-col items-center gap-1 rounded-2xl border p-3 transition ${
                   selected?.id === m.id
                     ? "border-[var(--color-gold)]/60 bg-[var(--color-gold)]/10 shadow-[0_0_24px_-8px_rgba(255,215,0,0.5)]"
@@ -312,7 +310,7 @@ export default function DepositPage() {
             ))}
             <button
               type="button"
-              onClick={() => { setAsiacellOpen((open) => !open); setSelected(null); setPaymentInfo(null); setMessage(null); setSubmitted(false); setTxId(""); setVerifyAmount(""); setVerificationMessage(null); }}
+              onClick={() => { setAsiacellOpen((open) => !open); setSelected(null); setPaymentInfo(null); setMessage(null); setSubmitted(false); setTxId(""); setVerificationMessage(null); }}
               className={`relative flex min-h-[148px] flex-col items-center justify-center gap-1 rounded-2xl border p-3 text-center transition sm:min-h-[164px] ${asiacellOpen ? "border-[var(--color-gold)]/70 bg-[var(--color-gold)]/12 shadow-[0_0_24px_-8px_rgba(255,215,0,0.55)]" : "glass-card hover:border-[var(--color-gold)]/45"}`}
             >
               {asiacellOpen && <span className="absolute -top-1.5 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-[var(--color-gold-bright)] to-[var(--color-gold)] text-black"><Check size={12} strokeWidth={4} /></span>}
@@ -412,8 +410,7 @@ export default function DepositPage() {
                   <span>رقم طلب الشحن: </span><code dir="ltr" className="break-all text-[var(--color-gold)]">{paymentInfo.order_id}</code>
                 </div>
                 <label className="block text-xs font-bold text-zinc-300">رقم المعاملة TxID / Hash<input required minLength={20} maxLength={256} value={txId} onChange={(event) => setTxId(event.target.value.trim())} dir="ltr" inputMode="text" placeholder="0x... أو TXID..." className="input-luxe mt-2 w-full rounded-xl px-3 py-3 text-left font-mono text-xs text-white" /></label>
-                <label className="block text-xs font-bold text-zinc-300">المبلغ المحول فعليًا (USDT)<input required type="number" min="0.000001" step="0.000001" value={verifyAmount} onChange={(event) => setVerifyAmount(event.target.value)} inputMode="decimal" placeholder="مثال: 5.00" className="input-luxe mt-2 w-full rounded-xl px-3 py-3 text-white" /></label>
-                <button type="submit" disabled={verifying || txId.trim().length < 20 || !verifyAmount} className="btn-gold flex w-full items-center justify-center gap-2 rounded-xl py-3.5 disabled:opacity-50">
+                <button type="submit" disabled={verifying || txId.trim().length < 20} className="btn-gold flex w-full items-center justify-center gap-2 rounded-xl py-3.5 disabled:opacity-50">
                   {verifying ? <Loader2 size={17} className="animate-spin" /> : <ShieldCheck size={17} />}
                   {verifying ? "جارٍ التحقق من OKX..." : "تحقق من التحويل"}
                 </button>

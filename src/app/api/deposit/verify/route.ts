@@ -10,7 +10,7 @@ const OKX_SUCCESS_STATE = "2";
 const DECIMAL_SCALE = 6;
 const DECIMAL_FACTOR = 1_000_000;
 
-type VerifyBody = { orderId?: unknown; txId?: unknown; amount?: unknown };
+type VerifyBody = { orderId?: unknown; txId?: unknown };
 type CryptoDeposit = {
   id: number | string;
   user_id: number | string;
@@ -91,11 +91,9 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({})) as VerifyBody;
     const orderId = text(body.orderId, 120);
     const txId = normalizeTxId(body.txId);
-    const enteredAmount = decimalUnits(body.amount);
 
     if (!orderId || orderId.length < 8) return json({ error: "رقم طلب الشحن غير صالح" }, 400);
     if (txId.length < 20) return json({ error: "أدخل رقم المعاملة TxID/Hash كاملًا" }, 400);
-    if (enteredAmount === null || enteredAmount <= 0) return json({ error: "أدخل مبلغ التحويل الصحيح" }, 400);
 
     const lookup = await db.execute({
       sql: "SELECT * FROM crypto_deposits WHERE order_id = ? AND user_id = ? LIMIT 1",
@@ -111,11 +109,15 @@ export async function POST(request: Request) {
     if (text(deposit.verification_txid, 256) && text(deposit.verification_txid, 256).toLowerCase() !== txId.toLowerCase()) {
       return json({ error: "تم إرسال معاملة تحقق مختلفة لهذا الطلب" }, 409);
     }
+    const usedTx = await db.execute({
+      sql: "SELECT id FROM crypto_deposits WHERE LOWER(verification_txid) = LOWER(?) AND id != ? LIMIT 1",
+      args: [txId, deposit.id],
+    });
+    if (usedTx.rows.length > 0) return json({ error: "تم استخدام هذه المعاملة في طلب شحن آخر" }, 409);
 
     const coin = text(deposit.coin, 20).toUpperCase();
     const expectedAmount = decimalUnits(deposit.amount);
     if (!coin || expectedAmount === null || expectedAmount <= 0) return json({ error: "إعداد مبلغ الإيداع غير صالح" }, 500);
-    if (enteredAmount !== expectedAmount) return json({ error: "المبلغ المدخل لا يطابق مبلغ طلب الشحن" }, 400);
 
     let records: OkxRecord[];
     try {
@@ -137,23 +139,28 @@ export async function POST(request: Request) {
     const matches = String(record.ccy || "").toUpperCase() === coin
       && chainMatches(deposit.network, record.chain, coin)
       && sameAddress(deposit.address, record.to)
-      && recordAmount !== null
-      && recordAmount === expectedAmount;
+      && recordAmount !== null;
 
     if (!matches) {
       await db.execute({ sql: "UPDATE crypto_deposits SET verification_status = 'mismatch', verification_note = ? WHERE id = ? AND status = 'pending'", args: ["بيانات المعاملة لا تطابق العملة أو الشبكة أو العنوان أو المبلغ", deposit.id] });
-      return json({ error: "بيانات التحويل لا تطابق طلب الشحن: تحقق من العملة والشبكة والعنوان والمبلغ" }, 400);
+      return json({ error: "بيانات التحويل لا تطابق طلب الشحن: تحقق من العملة والشبكة والعنوان" }, 400);
     }
 
+    if ((recordAmount as number) < expectedAmount) {
+      await db.execute({ sql: "UPDATE crypto_deposits SET verification_txid = ?, verification_status = 'mismatch', verification_note = ?, actually_paid = ? WHERE id = ? AND status = 'pending'", args: [txId, "المبلغ الفعلي أقل من مبلغ طلب الشحن", (recordAmount as number) / DECIMAL_FACTOR, deposit.id] });
+      return json({ error: "المبلغ الفعلي المحول أقل من مبلغ طلب الشحن" }, 400);
+    }
+
+    const actualAmount = (recordAmount as number) / DECIMAL_FACTOR;
     if (recordState !== OKX_SUCCESS_STATE) {
       await db.execute({
-        sql: "UPDATE crypto_deposits SET verification_txid = ?, verification_status = 'pending', verification_note = ? WHERE id = ? AND status = 'pending'",
-        args: [txId, `المعاملة موجودة لكن حالتها ${recordState || "غير معروفة"} ولم تصل لحالة النجاح`, deposit.id],
+        sql: "UPDATE crypto_deposits SET verification_txid = ?, verification_status = 'pending', verification_note = ?, actually_paid = ? WHERE id = ? AND status = 'pending'",
+        args: [txId, `المعاملة موجودة لكن حالتها ${recordState || "غير معروفة"} ولم تصل لحالة النجاح`, actualAmount, deposit.id],
       });
       return json({ pending: true, error: "المعاملة موجودة، لكنها لم تصل إلى حالة النجاح النهائية في OKX بعد" }, 202);
     }
 
-    const creditedAmount = expectedAmount / DECIMAL_FACTOR;
+    const creditedAmount = actualAmount;
     const tx = await db.transaction("write");
     try {
       const claim = await tx.execute({
@@ -168,14 +175,16 @@ export async function POST(request: Request) {
       }
 
       await tx.execute({ sql: "UPDATE users SET balance = COALESCE(balance, 0) + ? WHERE id = ?", args: [creditedAmount, userId] });
-      await tx.execute({
+      const transactionUpdate = await tx.execute({
         sql: "UPDATE transactions SET status = 'completed' WHERE user_id = ? AND type = 'deposit' AND status = 'pending' AND description LIKE ?",
         args: [userId, `%${orderId}%`],
       });
-      await tx.execute({
-        sql: "INSERT INTO transactions (user_id, type, amount, status, description, method) VALUES (?, 'deposit', ?, 'completed', ?, 'OKX')",
-        args: [userId, creditedAmount, `شحن كريبتو مؤكد عبر OKX — ${orderId} — TxID: ${txId}`],
-      });
+      if (Number(transactionUpdate.rowsAffected || 0) === 0) {
+        await tx.execute({
+          sql: "INSERT INTO transactions (user_id, type, amount, status, description, method) VALUES (?, 'deposit', ?, 'completed', ?, 'OKX')",
+          args: [userId, creditedAmount, `شحن كريبتو مؤكد عبر OKX — ${orderId} — TxID: ${txId}`],
+        });
+      }
       await tx.execute({
         sql: "INSERT INTO notifications (user_id, title, body) VALUES (?, ?, ?)",
         args: [userId, "تم تأكيد الشحن", `تمت مطابقة تحويل USDT عبر OKX وإضافة $${creditedAmount.toFixed(6)} إلى محفظتك.`],
@@ -183,6 +192,8 @@ export async function POST(request: Request) {
       await tx.commit();
     } catch (error) {
       try { await tx.rollback(); } catch {}
+      const errorText = error instanceof Error ? error.message.toLowerCase() : "";
+      if (errorText.includes("unique") && errorText.includes("verification_txid")) return json({ error: "تم استخدام هذه المعاملة في طلب شحن آخر" }, 409);
       throw error;
     }
 
