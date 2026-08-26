@@ -616,8 +616,8 @@ function ProviderCard(props: ProviderCardProps) {
 
         {/* تسعير جماعي دقيق */}
         <div className="mt-3 rounded-2xl border border-[var(--color-gold)]/20 bg-[var(--color-surface-2)] p-2.5">
-          <div className="mb-1 flex items-center gap-1.5 text-[10px] font-black text-[var(--color-gold-pale)]"><DollarSign size={13} /> تسعير اختياري بنطاق محدد</div>
-          <div className="mb-2 text-[9px] leading-relaxed text-zinc-500">لن تُطبّق أي نسبة تلقائيًا. اختر المزود أو التصنيف أو خدمات محددة ثم اضغط الإجراء المطلوب.</div>
+          <div className="mb-1 flex items-center gap-1.5 text-[10px] font-black text-[var(--color-gold-pale)]"><DollarSign size={13} /> تسعير وربح اختياري بنطاق محدد</div>
+          <div className="mb-2 text-[9px] leading-relaxed text-zinc-500">اكتب 50 لتصبح قيمة العرض = سعر المزود الأصلي × 1.50. التطبيق المتكرر لا يضاعف الربح؛ النسبة تُعاد من `rate` الأصلي دائمًا. اختر المزود أو التصنيف أو خدمات محددة ثم اضغط الإجراء.</div>
           <select value={bulkScope} onChange={(e) => setBulkScope(e.target.value as "provider" | "category" | "selected")} className="mb-2 h-9 w-full rounded-xl border border-[var(--color-gold)]/30 bg-[var(--color-surface)] px-2 text-center text-[10px] font-black text-[var(--color-gold-pale)] outline-none">
             <option value="provider">كل خدمات هذا المزود</option>
             <option value="category">التصنيف الحالي: {svcCat === "الكل" ? "اختر تصنيفًا من الأعلى" : svcCat}</option>
@@ -1247,6 +1247,7 @@ export default function ProvidersPage() {
         body: JSON.stringify({
           action: "bulk-add-services",
           providerId: previewing,
+          pricing_enabled: Number.isFinite(globalMarkup) && globalMarkup > 0,
           markup_percent: globalMarkup,
           services: bulkConfirm.services,
         }),
@@ -1346,7 +1347,8 @@ export default function ProvidersPage() {
               onChange={(e) => setGlobalMarkup(Number(e.target.value))}
               className="h-9 w-20 rounded-lg border border-[var(--color-gold)]/30 bg-[var(--color-surface-2)] px-2 text-center text-[12px] font-black text-[var(--color-gold-bright)] outline-none focus:border-[var(--color-gold)]"
             />
-            <span className="text-[11px] text-zinc-400">اقتراح فقط — لا يُطبَّق إلا بزر ونطاق تختارهما</span>
+                          <span className="text-[11px] text-zinc-400">لإضافة خدمات جديدة بهامش، أدخل النسبة ثم اختر «إضافة الكل»؛ ولا تُطبَّق تلقائيًا قبل ذلك.</span>
+
           </div>
         </div>
 

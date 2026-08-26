@@ -424,8 +424,14 @@ export async function POST(request: Request) {
         }
         const text = serviceTextFromProvider(s, remoteId, limits);
         if (current) {
-          const keepManual = String(current.pricing_mode || "markup") === "manual";
-          const sellRate = keepManual ? Number(current.manual_price ?? current.sell_rate ?? costRate) : (pricingEnabled ? applyMarkup(costRate, markupPct) : roundRate(costRate));
+          const currentMode = String(current.pricing_mode || "markup");
+          const currentMarkup = Number(current.markup_percent);
+          const preservedMarkup = Number.isFinite(currentMarkup) && currentMarkup >= 0 ? currentMarkup : 0;
+          const keepManual = currentMode === "manual";
+          const effectiveMarkup = pricingEnabled ? markupPct : preservedMarkup;
+          const sellRate = keepManual
+            ? Number(current.manual_price ?? current.sell_rate ?? costRate)
+            : applyMarkup(costRate, effectiveMarkup);
           syncStatements.push({
             sql: `UPDATE provider_services SET name=?, description=?, name_ar=?, description_ar=?, translation_source_hash=?, category=?, rate=?, min=?, max=?, type=?, sell_rate=?, is_new=0, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
             args: [text.name, text.description, text.nameAr, text.descriptionAr, text.sourceHash, String(s.category || ""), costRate, limits.min, limits.max, String(s.type || ""), sellRate, Number(current.id)],
