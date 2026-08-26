@@ -7,7 +7,7 @@ import { Globe2, CheckCircle, Send, AlertCircle } from "lucide-react";
 
 export default function ResellerPage() {
   const { settings } = useTheme();
-  const brandName = settings.siteName || "follower";
+  const brandName = settings.siteName || "Trendcom";
   const [siteName, setSiteName] = useState("");
   const [contact, setContact] = useState("");
   const [notes, setNotes] = useState("");

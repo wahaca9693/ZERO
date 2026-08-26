@@ -152,7 +152,7 @@ const preferenceLabels: Record<Locale, {
 
 export default function SettingsPage() {
   const { settings } = useTheme();
-  const brandName = settings.siteName || "follower";
+  const brandName = settings.siteName || "Trendcom";
   const { t, locale } = useLanguage();
   const labels = useMemo(() => preferenceLabels[locale], [locale]);
   const [preferences, setPreferences] = useState<Preferences>(defaults);

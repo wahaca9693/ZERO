@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { invalidateApiV2EnabledCache } from "@/lib/api-v2-guard";
+import { BRAND_DESCRIPTION, BRAND_LOGO_URL, BRAND_NAME } from "@/lib/branding";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -58,10 +59,10 @@ const aliases: Record<string, SettingKey> = {
 };
 
 const defaults: Record<SettingKey, string | number> = {
-  siteName: "follower",
-  brandMediaUrl: "",
+  siteName: BRAND_NAME,
+  brandMediaUrl: BRAND_LOGO_URL,
   brandMediaType: "image",
-  siteDescription: "منصة خدمات تسويق اجتماعي احترافية",
+  siteDescription: BRAND_DESCRIPTION,
   defaultCurrency: "USD",
   primaryColor: "#f97316",
   secondaryColor: "#fbbf24",
@@ -105,7 +106,13 @@ function readSettings(row: SettingsRow): SettingsData {
     const fallback = defaults[key];
     const rawValue = row?.[key] ?? fallback;
     const value = typeof rawValue === "string" || typeof rawValue === "number" ? rawValue : fallback;
-    settings[key] = ["apiV2Enabled", "registrationEnabled", "telegramChannelEnabled", "aiSupportEnabled"].includes(key) ? Boolean(Number(value)) : value;
+    if (key === "siteName" && String(value).trim().toLowerCase() === "follower") {
+      settings[key] = BRAND_NAME;
+    } else if (key === "brandMediaUrl") {
+      settings[key] = BRAND_LOGO_URL;
+    } else {
+      settings[key] = ["apiV2Enabled", "registrationEnabled", "telegramChannelEnabled", "aiSupportEnabled"].includes(key) ? Boolean(Number(value)) : value;
+    }
   }
   settings.site_name = String(settings.siteName);
   settings.theme_primary = String(settings.primaryColor);

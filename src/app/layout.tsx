@@ -7,6 +7,7 @@ import type { ClientAuthUser } from "./components/auth-client";
 import "./globals.css";
 import Providers from "./components/Providers";
 import type { Locale } from "./components/LanguageProvider";
+import { BRAND_DESCRIPTION, BRAND_LOGO_URL, BRAND_NAME } from "@/lib/branding";
 
 const tajawal = Tajawal({
   variable: "--font-tajawal",
@@ -16,7 +17,7 @@ const tajawal = Tajawal({
 });
 
 const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-const fallbackBranding = { siteName: "follower", siteDescription: "منصة خدمات تسويق اجتماعي احترافية", brandMediaUrl: "", brandMediaType: "image", telegramChannelEnabled: false, telegramChannelTitle: "قناة التحديثات", telegramChannelDescription: "تابع آخر أخبار المنصة وتحديثاتها.", telegramChannelUrl: "", aiSupportEnabled: false, aiSupportTitle: "دعم الذكاء الاصطناعي", aiSupportDescription: "مساعدة فورية وإجراءات ذكية على طلباتك.", aiSupportUrl: "" } as const;
+const fallbackBranding = { siteName: BRAND_NAME, siteDescription: BRAND_DESCRIPTION, brandMediaUrl: BRAND_LOGO_URL, brandMediaType: "image", telegramChannelEnabled: false, telegramChannelTitle: "قناة التحديثات", telegramChannelDescription: "تابع آخر أخبار المنصة وتحديثاتها.", telegramChannelUrl: "", aiSupportEnabled: false, aiSupportTitle: "دعم الذكاء الاصطناعي", aiSupportDescription: "مساعدة فورية وإجراءات ذكية على طلباتك.", aiSupportUrl: "" } as const;
 
 type Branding = { siteName: string; siteDescription: string; brandMediaUrl: string; brandMediaType: "image" | "video"; telegramChannelEnabled: boolean; telegramChannelTitle: string; telegramChannelDescription: string; telegramChannelUrl: string; aiSupportEnabled: boolean; aiSupportTitle: string; aiSupportDescription: string; aiSupportUrl: string };
 type BrandingRow = { siteName?: unknown; siteDescription?: unknown; brandMediaUrl?: unknown; brandMediaType?: unknown; telegramChannelEnabled?: unknown; telegramChannelTitle?: unknown; telegramChannelDescription?: unknown; telegramChannelUrl?: unknown; aiSupportEnabled?: unknown; aiSupportTitle?: unknown; aiSupportDescription?: unknown; aiSupportUrl?: unknown };
@@ -77,10 +78,10 @@ async function getBranding(): Promise<Branding> {
     ]);
     const row = result.rows[0] as BrandingRow | undefined;
     return {
-      siteName: typeof row?.siteName === "string" && row.siteName.trim() ? row.siteName.trim() : fallbackBranding.siteName,
+      siteName: typeof row?.siteName === "string" && row.siteName.trim() && row.siteName.trim().toLowerCase() !== "follower" ? row.siteName.trim() : fallbackBranding.siteName,
       siteDescription: typeof row?.siteDescription === "string" && row.siteDescription.trim() ? row.siteDescription.trim() : fallbackBranding.siteDescription,
-      brandMediaUrl: typeof row?.brandMediaUrl === "string" ? row.brandMediaUrl : fallbackBranding.brandMediaUrl,
-      brandMediaType: row?.brandMediaType === "video" ? "video" : "image",
+      brandMediaUrl: fallbackBranding.brandMediaUrl,
+      brandMediaType: "image",
       telegramChannelEnabled: Number(row?.telegramChannelEnabled || 0) === 1,
       telegramChannelTitle: typeof row?.telegramChannelTitle === "string" && row.telegramChannelTitle.trim() ? row.telegramChannelTitle.trim() : fallbackBranding.telegramChannelTitle,
       telegramChannelDescription: typeof row?.telegramChannelDescription === "string" && row.telegramChannelDescription.trim() ? row.telegramChannelDescription.trim() : fallbackBranding.telegramChannelDescription,
@@ -99,7 +100,7 @@ async function getBranding(): Promise<Branding> {
 
 export async function generateMetadata(): Promise<Metadata> {
   const branding = await getBranding();
-  const mediaIcon = "/logo.gif"; // Fixed official brand logo icon
+  const mediaIcon = BRAND_LOGO_URL;
   return {
     metadataBase: new URL(appUrl),
     title: { default: branding.siteName, template: `%s | ${branding.siteName}` },

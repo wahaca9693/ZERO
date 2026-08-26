@@ -1,5 +1,6 @@
 "use client";
 
+import { BRAND_LOGO_URL, BRAND_NAME } from "@/lib/branding";
 import { useTheme } from "./ThemeProvider";
 
 /* Dynamic admin-managed image URLs intentionally use a plain img element. */
@@ -27,9 +28,9 @@ export default function BrandMark({
   size = "md",
 }: BrandMarkProps) {
   const { settings } = useTheme();
-  const name = settings.siteName?.trim() || "follower";
-  // Official fixed brand logo - cannot be overridden to ensure brand consistency
-  const mediaUrl = "/logo.gif";
+  const name = settings.siteName?.trim() || BRAND_NAME;
+  // Official Trendcom logo is fixed so every shared brand mark stays consistent.
+  const mediaUrl = BRAND_LOGO_URL;
   const mediaClassName = `${sizeClasses[size]} shrink-0 object-cover ${imageClassName}`;
 
   return (

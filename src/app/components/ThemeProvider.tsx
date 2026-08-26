@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useLiveRefresh } from "./useLiveRefresh";
+import { BRAND_DESCRIPTION, BRAND_LOGO_URL, BRAND_NAME } from "@/lib/branding";
 
 export interface SiteSettings {
   siteName: string;
@@ -36,10 +37,10 @@ interface ThemeContextType {
 export const BRANDING_REFRESH_KEY = "smmnine:branding-updated";
 
 export const defaultSettings: SiteSettings = {
-  siteName: "follower",
-  brandMediaUrl: "",
+  siteName: BRAND_NAME,
+  brandMediaUrl: BRAND_LOGO_URL,
   brandMediaType: "image",
-  siteDescription: "منصة خدمات تسويق اجتماعي احترافية",
+  siteDescription: BRAND_DESCRIPTION,
   defaultCurrency: "USD",
   primaryColor: "var(--color-primary)",
   secondaryColor: "#fbbf24",
@@ -78,10 +79,11 @@ function normalizeSettings(value: unknown): SiteSettings {
     const candidate = source[key];
     return typeof candidate === "string" && candidate.trim() ? candidate.trim() : fallback;
   };
+  const configuredName = stringValue("siteName", defaultSettings.siteName);
   return {
-    siteName: stringValue("siteName", defaultSettings.siteName),
-    brandMediaUrl: typeof source.brandMediaUrl === "string" ? source.brandMediaUrl : defaultSettings.brandMediaUrl,
-    brandMediaType: source.brandMediaType === "video" ? "video" : "image",
+    siteName: configuredName.toLowerCase() === "follower" ? BRAND_NAME : configuredName,
+    brandMediaUrl: BRAND_LOGO_URL,
+    brandMediaType: "image",
     siteDescription: stringValue("siteDescription", defaultSettings.siteDescription),
     defaultCurrency: stringValue("defaultCurrency", defaultSettings.defaultCurrency),
     primaryColor: stringValue("primaryColor", defaultSettings.primaryColor),
@@ -168,10 +170,8 @@ export function ThemeProvider({ children, initialSettings }: { children: ReactNo
       setMetaContent("og:description", settings.siteDescription);
       setMetaContent("twitter:title", settings.siteName);
       setMetaContent("twitter:description", settings.siteDescription);
-      if (settings.brandMediaUrl && settings.brandMediaType === "image") {
-        setIconLink("icon", settings.brandMediaUrl);
-        setIconLink("shortcut icon", settings.brandMediaUrl);
-      }
+      setIconLink("icon", BRAND_LOGO_URL);
+      setIconLink("shortcut icon", BRAND_LOGO_URL);
     }
   }, [settings]);
 

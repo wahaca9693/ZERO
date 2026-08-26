@@ -217,7 +217,7 @@ const schemaStatements = [
   )`,
   `CREATE TABLE IF NOT EXISTS site_settings (
     id TEXT PRIMARY KEY,
-    siteName TEXT DEFAULT 'follower',
+    siteName TEXT DEFAULT 'Trendcom',
     brandMediaUrl TEXT,
     brandMediaType TEXT DEFAULT 'image',
     primaryColor TEXT DEFAULT '#f97316',

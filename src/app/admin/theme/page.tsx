@@ -7,6 +7,7 @@ import { broadcastBrandingUpdate, useTheme } from "../../components/ThemeProvide
 import Link from "next/link";
 import Image from "next/image";
 import { AlertCircle, ArrowRight, Image as ImageIcon, Palette, RefreshCcw, Save } from "lucide-react";
+import { BRAND_LOGO_URL } from "@/lib/branding";
 
 const fields = [
   { key: "primaryColor", label: "اللون الرئيسي", description: "الأزرار والعناوين المهمة." },
@@ -109,7 +110,7 @@ export default function AdminThemePage() {
 
   const previewPrimary = settings.primaryColor || "#f97316";
   const previewGold = settings.secondaryColor || "#fbbf24";
-  const hasMedia = Boolean(settings.brandMediaUrl);
+  const hasMedia = true;
 
   return (
     <DashboardLayout>
@@ -117,7 +118,7 @@ export default function AdminThemePage() {
         <header className="admin-card overflow-hidden p-4 sm:p-6">
           <div className="flex items-start gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-primary)]/15 text-[var(--color-primary)]"><Palette size={22} /></span>
-            <div className="min-w-0"><p className="mb-1 text-[10px] font-black tracking-[0.14em] text-[var(--color-primary)]">هوية موحّدة للمنصة</p><h1 className="text-xl font-black text-white sm:text-2xl">الهوية والمظهر</h1><p className="mt-2 max-w-2xl text-xs leading-6 text-zinc-400">غيّر الاسم والوصف والألوان والوسيط من مكان واحد. بعد الحفظ تنتشر الهوية في الهيدر والعنوان والصفحات دون إعادة إدخالها.</p></div>
+            <div className="min-w-0"><p className="mb-1 text-[10px] font-black tracking-[0.14em] text-[var(--color-primary)]">هوية موحّدة للمنصة</p><h1 className="text-xl font-black text-white sm:text-2xl">الهوية والمظهر</h1><p className="mt-2 max-w-2xl text-xs leading-6 text-zinc-400">غيّر الاسم والوصف والألوان من مكان واحد. شعار Trendcom الرسمي ثابت، وبعد الحفظ تنتشر الهوية في الهيدر والعنوان والصفحات دون إعادة إدخالها.</p></div>
           </div>
         </header>
 
@@ -134,7 +135,7 @@ export default function AdminThemePage() {
             <div className="mb-4 border-b border-[var(--color-border)] pb-3"><h2 className="text-lg font-black text-white">معاينة الهوية</h2><p className="mt-1 text-[10px] leading-5 text-zinc-500">تتغير المعاينة أثناء الكتابة قبل الحفظ.</p></div>
             <div className="rounded-2xl border p-4" style={{ background: settings.cardColor || "#111111", borderColor: settings.borderColor || "#27272a" }}>
               <div className="flex min-w-0 items-center gap-3">
-                {hasMedia ? (settings.brandMediaType === "video" ? <video src={settings.brandMediaUrl} className="h-11 w-11 shrink-0 rounded-xl object-cover" muted autoPlay loop playsInline /> : <Image src={settings.brandMediaUrl} alt="معاينة الهوية" width={44} height={44} unoptimized className="h-11 w-11 shrink-0 rounded-xl object-cover" />) : <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg font-black text-black" style={{ background: `linear-gradient(135deg, ${previewGold}, ${previewPrimary})` }}>{(settings.siteName || "s").slice(0, 1).toUpperCase()}</div>}
+                {hasMedia ? <Image src={BRAND_LOGO_URL} alt="معاينة هوية Trendcom" width={44} height={44} unoptimized className="h-11 w-11 shrink-0 rounded-xl object-cover" /> : <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg font-black text-black" style={{ background: `linear-gradient(135deg, ${previewGold}, ${previewPrimary})` }}>{(settings.siteName || "Trendcom").slice(0, 1).toUpperCase()}</div>}
                 <div className="min-w-0"><div className="truncate text-lg font-black" style={{ color: previewGold }}>{settings.siteName || "اسم المنصة"}</div><div className="truncate text-[10px] text-zinc-500">{settings.siteDescription || "وصف المنصة"}</div></div>
               </div>
               <div className="mt-5 grid grid-cols-2 gap-2"><div className="h-16 rounded-xl" style={{ background: `linear-gradient(135deg, ${previewGold}, ${previewPrimary})` }} /><div className="h-16 rounded-xl" style={{ background: settings.surfaceColor || "#1a1a1a", border: `1px solid ${settings.borderColor || "#27272a"}` }} /></div>
@@ -160,8 +161,8 @@ export default function AdminThemePage() {
         <section className="admin-card p-4 sm:p-5">
           <div className="mb-4 flex items-start justify-between gap-3"><div><h2 className="text-lg font-black text-white">الشعار والوسائط</h2><p className="mt-1 text-[10px] leading-5 text-zinc-500">الشعار الرسمي للمنصة ثابت ولا يمكن تغييره لضمان استقرار الهوية.</p></div><span className="rounded-xl bg-zinc-500/10 p-2 text-zinc-500"><ImageIcon size={17} /></span></div>
           <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-black/15 p-3 opacity-75">
-            {hasMedia ? (settings.brandMediaType === "video" ? <video src={settings.brandMediaUrl} className="h-16 w-16 shrink-0 rounded-xl object-cover" muted autoPlay loop playsInline /> : <Image src={settings.brandMediaUrl} alt="الشعار الرسمي" width={64} height={64} unoptimized className="h-16 w-16 shrink-0 rounded-xl object-cover" />) : <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)]/10 text-[var(--color-primary)]"><ImageIcon size={22} /></div>}
-            <div className="min-w-0 flex-1"><p className="truncate text-xs font-black text-zinc-200">الشعار الرسمي (ثابت)</p><p className="mt-1 truncate text-[10px] text-zinc-500">{settings.brandMediaUrl || "/logo.gif"}</p></div>
+            <Image src={BRAND_LOGO_URL} alt="شعار Trendcom الرسمي" width={64} height={64} unoptimized className="h-16 w-16 shrink-0 rounded-xl object-cover" />
+            <div className="min-w-0 flex-1"><p className="truncate text-xs font-black text-zinc-200">شعار Trendcom الرسمي (ثابت)</p><p className="mt-1 truncate text-[10px] text-zinc-500">{BRAND_LOGO_URL}</p></div>
           </div>
           <div className="mt-4 flex items-center gap-2 rounded-xl border border-zinc-500/20 bg-zinc-500/5 p-3 text-[10px] font-bold text-zinc-400">
             <AlertCircle size={14} className="shrink-0" />

@@ -9,7 +9,7 @@ import { useTheme } from "../../components/ThemeProvider";
 export default function LanguageSettingsPage() {
   const { locale, setLocale, t } = useLanguage();
   const { settings } = useTheme();
-  const brandName = settings.siteName || "follower";
+  const brandName = settings.siteName || "Trendcom";
   const [saved, setSaved] = useState(false);
 
   const handleLocaleChange = (nextLocale: Locale) => {

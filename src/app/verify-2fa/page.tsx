@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Shield, Lock, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useLanguage } from "@/app/components/LanguageProvider";
 import { announceAuthChange, type ClientAuthUser } from "@/app/components/auth-client";
+import { BRAND_LOGO_URL, BRAND_NAME } from "@/lib/branding";
 
 type VerifyResponse = {
   error?: string;
@@ -73,7 +74,7 @@ export default function Verify2FAPage() {
       <div className="w-full max-w-md space-y-8 relative z-10">
         <div className="flex flex-col items-center text-center space-y-4">
           <div className="relative w-24 h-24 mb-2">
-             <Image src="/logo.gif" alt="follower" fill className="object-contain" unoptimized />
+             <Image src={BRAND_LOGO_URL} alt={BRAND_NAME} fill className="object-contain" unoptimized />
           </div>
           <div className="h-16 w-16 rounded-3xl bg-[var(--color-gold)]/10 flex items-center justify-center text-[var(--color-gold)] border border-[var(--color-gold)]/20 shadow-lg shadow-[var(--color-gold)]/5">
             <Shield size={32} />
@@ -140,7 +141,7 @@ export default function Verify2FAPage() {
         </div>
         
         <p className="text-center text-zinc-600 text-[10px] font-medium">
-          follower &copy; 2026 • نظام أمان متقدم
+          {BRAND_NAME} &copy; 2026 • نظام أمان متقدم
         </p>
       </div>
     </div>
