@@ -64,9 +64,11 @@ function environmentConfig(): OkxConfig | null {
 }
 
 function encryptionKey() {
-  const sessionSecret = process.env.SESSION_SECRET?.trim();
-  if (!sessionSecret || sessionSecret.length < 32) throw new OkxConfigurationError();
-  return crypto.createHash("sha256").update(sessionSecret, "utf8").digest();
+  const encoded = process.env.INTEGRATION_SECRETS_KEY?.trim();
+  if (!encoded) throw new OkxConfigurationError();
+  const key = Buffer.from(encoded, "base64");
+  if (key.length !== 32) throw new OkxConfigurationError();
+  return key;
 }
 
 function encryptConfig(config: OkxConfig) {
