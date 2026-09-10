@@ -275,6 +275,7 @@ export default function Sidebar({ open, onClose, user }: SidebarProps) {
                   { label: "هوية المنصة", description: getDescription("theme", "تغيير الاسم والشعار والألوان"), href: "/admin/theme", icon: SlidersHorizontal },
                   { label: "منصات الكتالوج", description: "إنشاء أزرار باسم وشعار وخدمات تختارها أنت", href: "/admin/catalog-platforms", icon: Boxes },
                   { label: "الأزرار المخصصة", description: getDescription("navigation", "إضافة أو تعديل أو حذف روابط آمنة"), href: "/admin/navigation", icon: Sparkles },
+                  { label: "إعدادات المواقع الفرعية", description: "السعر والشروط والميزات والأسئلة الشائعة", href: "/admin/reseller-settings", icon: Globe2 },
                   { label: "إعدادات الإدارة", description: getDescription("adminSettings", "ضبط إعدادات التشغيل العامة"), href: "/admin/settings", icon: Settings },
                 ].map((item) => {
                   const itemPath = item.href.split("#")[0];

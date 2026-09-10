@@ -164,6 +164,21 @@ const schemaStatements = [
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
   )`,
+  `CREATE TABLE IF NOT EXISTS reseller_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    enabled INTEGER NOT NULL DEFAULT 1,
+    monthly_price REAL NOT NULL DEFAULT 2,
+    currency TEXT NOT NULL DEFAULT 'USD',
+    title TEXT NOT NULL DEFAULT 'أنشئ موقعك الخاص',
+    description TEXT NOT NULL DEFAULT 'احصل على لوحة خدمات خاصة بك وابدأ بيع الخدمات وكسب العمولة.',
+    features_json TEXT NOT NULL DEFAULT '["تصميم احترافي قابل للتخصيص","ربط تلقائي بالخدمات والأسعار","نظام مستخدمين ورصيد كامل","لوحة تحكم مستقلة"]',
+    terms_json TEXT NOT NULL DEFAULT '["اسم الفرع يجب أن يكون فريدًا ومتاحًا.","يُخصم الاشتراك الشهري بعد تأكيد إنشاء الموقع.","إضافة مزودين خارجيين قد تتطلب تفعيلًا مدفوعًا.","يحق للإدارة إيقاف الموقع عند مخالفة الشروط."]',
+    faq_json TEXT NOT NULL DEFAULT '[{"q":"ما هو الموقع الفرعي؟","a":"مساحة مستقلة باسمك داخل منصة Trendcom لإدارة الخدمات والمستخدمين."},{"q":"هل أستطيع تغيير الألوان؟","a":"نعم، يتيح لك النظام تخصيص الهوية والألوان من لوحة موقعك."},{"q":"هل أستطيع إضافة مزودين؟","a":"تتم إضافة المزودين وفق الصلاحية والخطة التي يحددها Admin."}]',
+    primary_color TEXT NOT NULL DEFAULT '#f97316',
+    secondary_color TEXT NOT NULL DEFAULT '#fbbf24',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `INSERT OR IGNORE INTO reseller_settings (id) VALUES (1)`,
   `CREATE TABLE IF NOT EXISTS asiacell_admin (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     phone TEXT,
@@ -470,6 +485,7 @@ const indexStatements = [
   `CREATE INDEX IF NOT EXISTS idx_admin_navigation_active ON admin_navigation_items(is_active, audience, sort_order, id)`,
   `CREATE INDEX IF NOT EXISTS idx_catalog_platform_buttons_active ON catalog_platform_buttons(is_active, sort_order, id)`,
   `CREATE INDEX IF NOT EXISTS idx_auth_attempts_updated_at ON auth_attempts(updated_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_reseller_requests_user_created ON reseller_requests(user_id, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_free_offers_active ON free_service_offers(is_active, updated_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_free_usages_user_offer ON free_service_usages(user_id, offer_id, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_free_usages_order ON free_service_usages(order_id)`,
