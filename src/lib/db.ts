@@ -179,6 +179,33 @@ const schemaStatements = [
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`,
   `INSERT OR IGNORE INTO reseller_settings (id) VALUES (1)`,
+  `CREATE TABLE IF NOT EXISTS reseller_sites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_user_id INTEGER NOT NULL,
+    creation_key TEXT NOT NULL UNIQUE,
+    slug TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    subscription_status TEXT NOT NULL DEFAULT 'active',
+    subscription_price REAL NOT NULL,
+    subscription_currency TEXT NOT NULL DEFAULT 'USD',
+    next_billing_at DATETIME,
+    theme_json TEXT NOT NULL DEFAULT '{}',
+    payment_methods_json TEXT NOT NULL DEFAULT '[]',
+    provider_access_enabled INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS reseller_site_users (
+    site_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    role TEXT NOT NULL DEFAULT 'customer',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (site_id, user_id),
+    FOREIGN KEY (site_id) REFERENCES reseller_sites(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )`,
   `CREATE TABLE IF NOT EXISTS asiacell_admin (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     phone TEXT,
@@ -485,6 +512,9 @@ const indexStatements = [
   `CREATE INDEX IF NOT EXISTS idx_admin_navigation_active ON admin_navigation_items(is_active, audience, sort_order, id)`,
   `CREATE INDEX IF NOT EXISTS idx_catalog_platform_buttons_active ON catalog_platform_buttons(is_active, sort_order, id)`,
   `CREATE INDEX IF NOT EXISTS idx_auth_attempts_updated_at ON auth_attempts(updated_at)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_reseller_sites_owner_slug ON reseller_sites(owner_user_id, slug)`,
+  `CREATE INDEX IF NOT EXISTS idx_reseller_sites_owner_status ON reseller_sites(owner_user_id, status, created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_reseller_site_users_user ON reseller_site_users(user_id, site_id)`,
   `CREATE INDEX IF NOT EXISTS idx_reseller_requests_user_created ON reseller_requests(user_id, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_free_offers_active ON free_service_offers(is_active, updated_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_free_usages_user_offer ON free_service_usages(user_id, offer_id, created_at DESC)`,

@@ -1,96 +1,33 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import DashboardLayout from "../components/DashboardLayout";
-import { SlidersHorizontal, User, Wallet, FileText, Globe2, LogOut, AlertCircle } from "lucide-react";
-import Link from "next/link";
+import { CheckCircle2, ExternalLink, Globe2, Loader2, Plus, Save, Trash2, WalletCards } from "lucide-react";
+
+type PaymentMethod = { name: string; instructions: string; enabled: boolean };
+type Site = { id: number; slug: string; displayName: string; status: string; subscriptionStatus: string; nextBillingAt: string | null; theme: { primaryColor?: string; secondaryColor?: string }; paymentMethods: PaymentMethod[]; providerAccessEnabled: boolean; customers: number };
 
 export default function SiteManagementPage() {
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const [user, setUser] = useState<{ username: string; balance: number; role: string } | null>(null);
+  const slug = searchParams.get("site") || "";
+  const [site, setSite] = useState<Site | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
   useEffect(() => {
-    fetch("/api/user")
-      .then((res) => res.json())
-      .then((data) => setUser(data.user || null));
-  }, []);
+    if (!slug) return;
+    fetch(`/api/reseller/site?slug=${encodeURIComponent(slug)}`, { cache: "no-store" }).then((response) => response.json()).then((data) => { if (!data.site) throw new Error(data.error || "الموقع غير موجود"); setSite(data.site); }).catch((error: unknown) => setMessage({ text: error instanceof Error ? error.message : "تعذر تحميل الموقع", error: true })).finally(() => setLoading(false));
+  }, [slug]);
 
-  const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-  };
-
-  const cards = [
-    { href: "/dashboard", label: "مركز الدعم", icon: User, desc: "تواصل مع فريق الدعم" },
-    { href: "/deposit", label: "شحن الرصيد", icon: Wallet, desc: "اختر طريقة الدفع المناسبة" },
-    { href: "/terms", label: "شروط الاستخدام", icon: FileText, desc: "اقرأ شروط الخدمة" },
-    { href: "/reseller", label: "أنشئ موقعك مجاناً", icon: Globe2, desc: "احصل على موقع خاص بك" },
-  ];
-
-  return (
-    <DashboardLayout>
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <SlidersHorizontal className="text-[var(--color-primary)]" size={28} />
-          <h1 className="text-2xl font-black text-white">إدارة موقعك</h1>
-        </div>
-
-        {user && (
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white">
-                <User size={28} />
-              </div>
-              <div>
-                <div className="text-lg font-black text-white">{user.username}</div>
-                <div className="text-sm text-zinc-400">{user.role === "admin" ? "مدير" : "مستخدم"}</div>
-                <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-[var(--color-surface)] px-3 py-0.5 text-sm font-bold text-[var(--color-primary)]">
-                  $ {Number(user.balance).toFixed(4)}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="grid gap-3">
-          {cards.map((card) => (
-            <Link
-              key={card.href}
-              href={card.href}
-              className="flex items-center gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 transition hover:border-[var(--color-primary)]/30"
-            >
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-surface)] text-[var(--color-primary)]">
-                <card.icon size={22} />
-              </span>
-              <div>
-                <div className="font-bold text-white">{card.label}</div>
-                <div className="text-xs text-zinc-500">{card.desc}</div>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle size={20} className="mt-0.5 text-[var(--color-primary)]" />
-            <div>
-              <div className="font-bold text-white">إعدادات متقدمة</div>
-              <p className="text-sm text-zinc-400">
-                الإعدادات المتقدمة متوفرة لحسابات الأدمن فقط. إذا كنت بحاجة لمساعدة تواصل مع الدعم الفني.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <button
-          onClick={logout}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 py-3.5 font-bold text-red-400 transition hover:bg-red-500/20"
-        >
-          <LogOut size={18} />
-          تسجيل الخروج
-        </button>
-      </div>
-    </DashboardLayout>
-  );
+  const updateTheme = (key: "primaryColor" | "secondaryColor", value: string) => setSite((previous) => previous ? { ...previous, theme: { ...previous.theme, [key]: value } } : previous);
+  const updatePayment = (index: number, key: keyof PaymentMethod, value: string | boolean) => setSite((previous) => previous ? { ...previous, paymentMethods: previous.paymentMethods.map((method, methodIndex) => methodIndex === index ? { ...method, [key]: value } : method) } : previous);
+  const save = async () => { if (!site) return; setSaving(true); setMessage(null); try { const response = await fetch("/api/reseller/site", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug: site.slug, theme: site.theme, paymentMethods: site.paymentMethods }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "تعذر الحفظ"); setMessage({ text: "تم حفظ إعدادات موقعك." }); } catch (error: unknown) { setMessage({ text: error instanceof Error ? error.message : "تعذر الحفظ", error: true }); } finally { setSaving(false); } };
+  if (!slug) return <DashboardLayout><div dir="rtl" className="rounded-2xl bg-[var(--color-card)] p-5 text-center font-bold text-zinc-300">افتح موقعًا من صفحة لوحاتي أولًا.</div></DashboardLayout>;
+  if (loading) return <DashboardLayout><div className="flex min-h-[40vh] items-center justify-center text-zinc-400"><Loader2 className="ml-2 animate-spin" size={20} /> جارٍ تحميل لوحة الموقع...</div></DashboardLayout>;
+  if (!site) return <DashboardLayout><div dir="rtl" className="rounded-2xl bg-red-500/10 p-5 text-center font-bold text-red-300">{message?.text || "اختر موقعًا من صفحة لوحاتي أولًا."}<button onClick={() => router.push("/reseller")} className="mt-4 block w-full rounded-xl bg-[var(--color-primary)] py-3 font-black text-black">العودة إلى لوحاتي</button></div></DashboardLayout>;
+  const primary = site.theme.primaryColor || "#f97316"; const secondary = site.theme.secondaryColor || "#fbbf24";
+  return <DashboardLayout><div dir="rtl" className="mx-auto max-w-4xl space-y-4 pb-10" style={{ "--site-primary": primary, "--site-secondary": secondary } as React.CSSProperties}><section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--site-primary)] to-[var(--site-secondary)] p-6 text-black"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black opacity-70">لوحة موقعك المستقلة</p><h1 className="mt-1 text-3xl font-black">{site.displayName}</h1><p className="mt-2 text-sm font-bold opacity-75">الرابط الداخلي: /{site.slug}</p></div><Globe2 size={34} /></div></section><section className="grid gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4"><span className="text-xs text-zinc-500">حالة الموقع</span><div className="mt-2 font-black text-emerald-400">{site.status === "active" ? "نشط" : site.status}</div></div><div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4"><span className="text-xs text-zinc-500">المشتركون</span><div className="mt-2 font-black text-white">{site.customers}</div></div><div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4"><span className="text-xs text-zinc-500">التجديد القادم</span><div className="mt-2 font-black text-white">{site.nextBillingAt ? new Date(site.nextBillingAt).toLocaleDateString("ar-IQ") : "—"}</div></div></section><section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5"><h2 className="mb-1 text-xl font-black text-white">تخصيص موقعك</h2><p className="mb-4 text-sm text-zinc-500">القالب موحد لكل المواقع، وهذه الألوان تخص موقعك فقط.</p><div className="grid gap-3 sm:grid-cols-2"><label className="flex items-center justify-between rounded-xl bg-[var(--color-surface)] p-3 text-sm font-bold text-zinc-300">اللون الأساسي<input type="color" value={primary} onChange={(event) => updateTheme("primaryColor", event.target.value)} /></label><label className="flex items-center justify-between rounded-xl bg-[var(--color-surface)] p-3 text-sm font-bold text-zinc-300">اللون الثانوي<input type="color" value={secondary} onChange={(event) => updateTheme("secondaryColor", event.target.value)} /></label></div></section><section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5"><div className="mb-3 flex items-center justify-between"><div><h2 className="text-xl font-black text-white">طرق الدفع</h2><p className="text-sm text-zinc-500">أضف طرق الدفع التي ستظهر لعملاء موقعك.</p></div><button type="button" onClick={() => setSite((previous) => previous ? { ...previous, paymentMethods: [...previous.paymentMethods, { name: "", instructions: "", enabled: true }] } : previous)} className="flex items-center gap-1 rounded-xl bg-[var(--site-primary)]/15 px-3 py-2 text-xs font-black text-[var(--site-primary)]"><Plus size={16} /> إضافة</button></div><div className="space-y-3">{site.paymentMethods.length === 0 && <div className="rounded-xl bg-[var(--color-surface)] p-4 text-sm text-zinc-500">لم تُضف طرق دفع بعد.</div>}{site.paymentMethods.map((method, index) => <div key={index} className="grid gap-2 rounded-xl bg-[var(--color-surface)] p-3 sm:grid-cols-[1fr_1.5fr_auto_auto]"><input value={method.name} onChange={(event) => updatePayment(index, "name", event.target.value)} placeholder="اسم الطريقة" className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-white outline-none" /><input value={method.instructions} onChange={(event) => updatePayment(index, "instructions", event.target.value)} placeholder="التعليمات أو رقم الحساب" className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-white outline-none" /><label className="flex items-center gap-1 text-xs text-zinc-300"><input type="checkbox" checked={method.enabled} onChange={(event) => updatePayment(index, "enabled", event.target.checked)} /> مفعلة</label><button type="button" onClick={() => setSite((previous) => previous ? { ...previous, paymentMethods: previous.paymentMethods.filter((_, methodIndex) => methodIndex !== index) } : previous)} className="rounded-lg bg-red-500/10 px-2 text-red-300"><Trash2 size={16} /></button></div>)}</div></section><section className="grid gap-3 sm:grid-cols-2"><div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5"><WalletCards className="mb-3 text-[var(--site-primary)]" size={24} /><h2 className="font-black text-white">إدارة العملاء والرصيد</h2><p className="mt-2 text-sm leading-6 text-zinc-500">ستُضاف هنا إدارة المستخدمين وطلبات الموقع، مع عزل كامل عن مستخدمي المنصة الرسمية.</p></div><div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5"><ExternalLink className="mb-3 text-[var(--site-primary)]" size={24} /><h2 className="font-black text-white">الخدمات والمزودون</h2><p className="mt-2 text-sm leading-6 text-zinc-500">يتم تفعيل إضافة المزودين وفق الصلاحية التي يحددها Admin، ولا يمكن للموقع تعديل مزودي المنصة الأصلية.</p></div></section>{message && <div className={`rounded-xl p-3 text-sm font-bold ${message.error ? "bg-red-500/10 text-red-300" : "bg-emerald-500/10 text-emerald-300"}`}>{message.text}</div>}<button type="button" onClick={save} disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--site-primary)] py-3.5 font-black text-black disabled:opacity-50">{saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} حفظ إعدادات الموقع</button><div className="flex items-center gap-2 text-xs text-zinc-500"><CheckCircle2 size={15} className="text-emerald-400" /> موقعك مستقل عن لوحة Admin الرسمية، وتعديلاته لا تغيّر إعدادات Trendcom العامة.</div></div></DashboardLayout>;
 }
