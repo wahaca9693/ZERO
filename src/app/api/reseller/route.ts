@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { db, initDb } from "@/lib/db";
+import { isSubscriptionExpired, publicSiteUrl } from "@/lib/reseller-sites";
 
 type SiteRow = Record<string, unknown>;
 
@@ -31,25 +32,30 @@ function publicSettings(row: SiteRow | undefined) {
   };
 }
 
-function publicSite(row: SiteRow) {
+function publicSite(row: SiteRow, origin: string) {
+  const expired = isSubscriptionExpired(row.next_billing_at);
   return {
     id: Number(row.id),
     slug: String(row.slug),
     displayName: String(row.display_name),
-    status: String(row.status),
-    subscriptionStatus: String(row.subscription_status),
+    status: expired ? "expired" : String(row.status),
+    subscriptionStatus: expired ? "expired" : String(row.subscription_status),
+    subscriptionPrice: Number(row.subscription_price || 0),
+    subscriptionCurrency: String(row.subscription_currency || "USD"),
     nextBillingAt: row.next_billing_at ?? null,
+    publicUrl: publicSiteUrl(origin, String(row.slug)),
     createdAt: row.created_at ?? null,
     providerAccessEnabled: Number(row.provider_access_enabled ?? 0) === 1,
   };
 }
 
-async function loadForUser(userId: number) {
+async function loadForUser(userId: number, origin: string) {
   const [settingsResult, sitesResult] = await Promise.all([
     db.execute("SELECT * FROM reseller_settings WHERE id = 1 LIMIT 1"),
-    db.execute({ sql: "SELECT id, slug, display_name, status, subscription_status, next_billing_at, created_at, provider_access_enabled FROM reseller_sites WHERE owner_user_id = ? ORDER BY id DESC", args: [userId] }),
+    db.execute({ sql: "SELECT id, slug, display_name, status, subscription_status, subscription_price, subscription_currency, next_billing_at, created_at, provider_access_enabled FROM reseller_sites WHERE owner_user_id = ? ORDER BY id DESC", args: [userId] }),
   ]);
-  return { settings: publicSettings(settingsResult.rows[0] as SiteRow | undefined), sites: sitesResult.rows.map((row) => publicSite(row as SiteRow)) };
+      return { settings: publicSettings(settingsResult.rows[0] as SiteRow | undefined), sites: sitesResult.rows.map((row) => publicSite(row as SiteRow, origin)) };
+
 }
 
 export async function GET(request: Request) {
@@ -64,7 +70,7 @@ export async function GET(request: Request) {
       const result = await db.execute({ sql: "SELECT id FROM reseller_sites WHERE slug = ? LIMIT 1", args: [slug] });
       return NextResponse.json({ available: result.rows.length === 0, slug });
     }
-    return NextResponse.json(await loadForUser(session.userId!));
+    return NextResponse.json(await loadForUser(session.userId!, new URL(request.url).origin));
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "تعذر تحميل المواقع";
     const status = message === "Unauthorized" ? 401 : 500;
@@ -94,7 +100,7 @@ export async function POST(request: Request) {
     if (!Number.isFinite(price) || price < 0) return NextResponse.json({ error: "سعر الاشتراك غير صالح" }, { status: 500 });
 
     const existingByKey = await db.execute({ sql: "SELECT * FROM reseller_sites WHERE creation_key = ? AND owner_user_id = ? LIMIT 1", args: [creationKey, session.userId!] });
-    if (existingByKey.rows.length) return NextResponse.json({ ok: true, site: publicSite(existingByKey.rows[0] as SiteRow), alreadyCreated: true });
+    if (existingByKey.rows.length) return NextResponse.json({ ok: true, site: publicSite(existingByKey.rows[0] as SiteRow, new URL(request.url).origin), alreadyCreated: true, dashboardUrl: `/site-management?site=${encodeURIComponent(slug)}` });
 
     const transaction = await db.transaction("write");
     try {
@@ -116,8 +122,8 @@ export async function POST(request: Request) {
       await transaction.execute({ sql: "INSERT INTO reseller_site_users (site_id, user_id, role) VALUES (?, ?, 'owner')", args: [siteId, session.userId!] });
       await transaction.execute({ sql: "INSERT INTO transactions (user_id, type, amount, status, description, method) VALUES (?, 'reseller_subscription', ?, 'completed', ?, 'wallet')", args: [session.userId!, -price, `اشتراك موقع فرعي: ${displayName}`] });
       await transaction.commit();
-      const created = await db.execute({ sql: "SELECT id, slug, display_name, status, subscription_status, next_billing_at, created_at, provider_access_enabled FROM reseller_sites WHERE id = ?", args: [siteId] });
-      return NextResponse.json({ ok: true, site: publicSite(created.rows[0] as SiteRow), dashboardUrl: `/site-management?site=${encodeURIComponent(slug)}`, charged: price, currency: settings.currency });
+      const created = await db.execute({ sql: "SELECT id, slug, display_name, status, subscription_status, subscription_price, subscription_currency, next_billing_at, created_at, provider_access_enabled FROM reseller_sites WHERE id = ?", args: [siteId] });
+      return NextResponse.json({ ok: true, site: publicSite(created.rows[0] as SiteRow, new URL(request.url).origin), dashboardUrl: `/site-management?site=${encodeURIComponent(slug)}`, publicUrl: publicSiteUrl(new URL(request.url).origin, slug), charged: price, currency: settings.currency });
     } catch (error) {
       await transaction.rollback().catch(() => undefined);
       throw error;
