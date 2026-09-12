@@ -647,6 +647,14 @@ const schemaMigrations: SchemaMigration[] = [
       ["aiSupportUrl", "TEXT DEFAULT ''"],
     ],
   },
+  {
+    table: "reseller_accounts",
+    columns: [
+      ["is_2fa_enabled", "INTEGER DEFAULT 0"],
+      ["security_code_hash", "TEXT"],
+      ["last_2fa_verified_at", "DATETIME"],
+    ],
+  },
 ];
 
 async function executeSchemaBatch() {
