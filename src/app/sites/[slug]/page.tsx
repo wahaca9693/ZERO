@@ -13,7 +13,7 @@ export default async function PublicResellerSite({ params }: PageProps) {
   if (!loaded.site) notFound();
   const origin = process.env.NEXT_PUBLIC_APP_URL || "https://cxxv.vercel.app";
   const site = publicSiteData(loaded.site, origin, loaded.expired);
-  const theme = site.theme as { primaryColor?: string; secondaryColor?: string };
+  const theme = site.theme as { primaryColor?: string; secondaryColor?: string; siteName?: string; logoUrl?: string };
   const methods = Array.isArray(site.paymentMethods) ? site.paymentMethods as PaymentMethod[] : [];
   const primary = theme.primaryColor || "#f97316";
   const secondary = theme.secondaryColor || "#fbbf24";
