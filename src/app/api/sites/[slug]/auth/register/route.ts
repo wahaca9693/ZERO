@@ -1,40 +1,103 @@
 import { NextResponse } from "next/server";
+import { initDb } from "@/lib/db";
+import { db } from "@/lib/db";
+import { loadPublicSite } from "@/lib/reseller-sites";
 import bcrypt from "bcryptjs";
-import { db, initDb } from "@/lib/db";
-import { getResellerSession } from "@/lib/reseller-auth";
+import { getIronSession } from "iron-session/edge";
 
-type Context = { params: Promise<{ slug: string }> };
+const sessionOptions = {
+  password: process.env.SESSION_SECRET || "complex_password_at_least_32_chars_long_for_security",
+  cookieName: "reseller_session",
+  cookieOptions: {
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    sameSite: "lax" as const,
+    maxAge: 60 * 60 * 24 * 7,
+    path: "/",
+  },
+};
 
-export async function POST(request: Request, context: Context) {
+export async function POST(request: NextRequest) {
   try {
-    await initDb();
-    const { slug } = await context.params;
-    const body = await request.json() as { username?: unknown; email?: unknown; password?: unknown; termsAccepted?: unknown };
-    const username = typeof body.username === "string" ? body.username.trim().toLowerCase() : "";
-    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-    const password = typeof body.password === "string" ? body.password : "";
-    if (!/^[a-z0-9_]{3,32}$/.test(username)) return NextResponse.json({ error: "اسم المستخدم يجب أن يكون من 3 إلى 32 حرفًا إنجليزيًا صغيرًا أو رقمًا" }, { status: 400 });
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: "البريد الإلكتروني غير صالح" }, { status: 400 });
-    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) return NextResponse.json({ error: "كلمة المرور يجب أن تحتوي على 8 أحرف وحروف وأرقام" }, { status: 400 });
-    if (body.termsAccepted !== true) return NextResponse.json({ error: "يجب الموافقة على شروط الموقع" }, { status: 400 });
+    const { slug } = await request.json().catch(() => ({})).then(() => {
+      const url = new URL(request.url);
+      const parts = url.pathname.split("/");
+      return parts[parts.indexOf("sites") + 1];
+    });
+    
+    if (!slug) {
+      return NextResponse.json({ error: "الموقع غير محدد" }, { status: 400 });
+    }
 
-    const siteResult = await db.execute({ sql: "SELECT id, status, next_billing_at FROM reseller_sites WHERE slug = ? LIMIT 1", args: [slug] });
-    const site = siteResult.rows[0] as Record<string, unknown> | undefined;
-    if (!site || String(site.status) !== "active" || (site.next_billing_at && new Date(String(site.next_billing_at)).getTime() <= Date.now())) return NextResponse.json({ error: "هذا الموقع متوقف أو انتهى اشتراكه" }, { status: 403 });
-    const duplicate = await db.execute({ sql: "SELECT id FROM reseller_accounts WHERE site_id = ? AND (username = ? COLLATE NOCASE OR email = ? COLLATE NOCASE) LIMIT 1", args: [Number(site.id), username, email] });
-    if (duplicate.rows.length) return NextResponse.json({ error: "اسم المستخدم أو البريد مستخدم داخل هذا الموقع" }, { status: 409 });
+    await initDb();
+    const loaded = await (await import("@/lib/reseller-sites")).loadPublicSite(slug);
+    if (!loaded.site) {
+      return NextResponse.json({ error: "الموقع غير موجود" }, { status: 404 });
+    }
+
+    const body = await request.json();
+    const { username, email, password, termsAccepted } = body;
+
+    if (!username || !password) {
+      return NextResponse.json({ error: "اسم المستخدم وكلمة المرور مطلوبان" }, { status: 400 });
+    }
+
+    // Check if user already exists in this site
+    const existing = await db.execute({
+      sql: "SELECT id FROM reseller_accounts WHERE site_id = ? AND (username = ? OR email = ?) LIMIT 1",
+      args: [Number((await import("@/lib/reseller-sites")).loadPublicSite(slug)).site?.id || 0, username, email]
+    });
+
+    // Get site ID
+    const siteResult = await db.execute({ sql: "SELECT id FROM reseller_sites WHERE slug = ? LIMIT 1", args: [slug] });
+    const siteId = Number(siteResult.rows[0]?.id || 0);
+    
+    if (!siteId) {
+      return NextResponse.json({ error: "الموقع غير موجود" }, { status: 404 });
+    }
+
+    const existingUser = await db.execute({
+      sql: "SELECT id FROM reseller_accounts WHERE site_id = ? AND (username = ? COLLATE NOCASE OR email = ? COLLATE NOCASE) LIMIT 1",
+      args: [siteId, username, email]
+    });
+
+    if (existingUser.rows.length > 0) {
+      return NextResponse.json({ error: "اسم المستخدم أو البريد الإلكتروني مستخدم بالفعل" }, { status: 409 });
+    }
+
     const passwordHash = await bcrypt.hash(password, 12);
-    const inserted = await db.execute({ sql: "INSERT INTO reseller_accounts (site_id, username, email, password_hash, role, terms_accepted) VALUES (?, ?, ?, ?, 'user', 1)", args: [Number(site.id), username, email, passwordHash] });
-    const session = await getResellerSession(slug);
-    session.accountId = Number(inserted.lastInsertRowid);
-    session.siteId = Number(site.id);
-    session.username = username;
-    session.role = "user";
-    session.isLoggedIn = true;
-    await session.save();
-    return NextResponse.json({ user: { username, role: "user", balance: 0 } });
-  } catch (error: unknown) {
-    console.error("Reseller register error", { errorName: error instanceof Error ? error.name : "UnknownError" });
-    return NextResponse.json({ error: "تعذر إنشاء الحساب داخل الموقع حاليًا" }, { status: 500 });
+    
+    await db.execute({
+      sql: "INSERT INTO reseller_accounts (site_id, username, email, password_hash, role, terms_accepted) VALUES (?, ?, ?, ?, 'user', ?)",
+      args: [siteId, username, email.toLowerCase(), passwordHash, termsAccepted ? 1 : 0]
+    });
+
+    const response = NextResponse.json({ success: true, message: "تم إنشاء الحساب بنجاح" });
+    
+    // Create session
+    const session = await getIronSession(request, response, {
+      password: process.env.SESSION_SECRET || "complex_password_at_least_32_chars_long_for_security",
+      cookieName: "reseller_session",
+      cookieOptions: { secure: process.env.NODE_ENV === "production", httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 24 * 7, path: "/" }
+    });
+    
+    const newUser = await db.execute({
+      sql: "SELECT id, username, email, role FROM reseller_accounts WHERE site_id = ? AND username = ? LIMIT 1",
+      args: [siteId, username]
+    });
+    
+    if (newUser.rows[0]) {
+      session.userId = Number(newUser.rows[0].id);
+      session.slug = slug;
+      session.username = newUser.rows[0].username;
+      session.email = newUser.rows[0].email;
+      session.role = newUser.rows[0].role;
+      await session.save();
+    }
+
+    return response;
+  } catch (error) {
+    console.error("Registration error:", error);
+    return NextResponse.json({ error: "تعذر إنشاء الحساب" }, { status: 500 });
   }
 }
