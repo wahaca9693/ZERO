@@ -557,6 +557,7 @@ const schemaMigrations: SchemaMigration[] = [
       ["email_verification_expires_at", "DATETIME"],
       ["firebase_uid", "TEXT"],
       ["auth_provider", "TEXT DEFAULT 'password'"],
+      ["verified_phone", "TEXT"],
       // libSQL لا يسمح بإضافة عمود قديم بقيمة افتراضية غير ثابتة عبر ALTER TABLE.
       ["updated_at", "DATETIME"],
     ],
