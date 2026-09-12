@@ -126,12 +126,7 @@ export default function LoginPage() {
       return;
     }
 
-    const turnstileRequired = false; // Manually disabled
-    if (turnstileRequired && !turnstileToken) {
-      setError(turnstileError || "يرجى إكمال التحقق الأمني أولًا");
-      return;
-    }
-
+    // Turnstile has been completely removed
     setLoading(true);
     try {
       const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
@@ -200,7 +195,7 @@ export default function LoginPage() {
             <div><label className="mb-2 block text-sm font-black text-white">{t("auth.password")}</label><div className="relative"><Lock className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--color-gold)]/70" size={19} /><input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3.5 pr-11 pl-11 text-white placeholder:text-zinc-500 outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-gold)]/40" placeholder="********" autoComplete={isLogin ? "current-password" : "new-password"} required /><button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-gold)]/70">{showPassword ? <EyeOff size={19} /> : <Eye size={19} />}</button></div>{!isLogin && <p className="mt-1.5 text-xs text-zinc-500">{t("auth.passwordHint")}</p>}</div>
             {!isLogin && <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5"><input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} className="mt-1 h-4 w-4 accent-[var(--color-primary)]" /><div className="text-xs leading-relaxed text-zinc-400">{t("auth.acceptTerms")} <Link href="/terms" target="_blank" className="font-bold text-[var(--color-primary)] hover:underline">{t("auth.terms")}</Link> {t("auth.compensationPolicy")}</div></label>}
             <input type="text" name="website" value={website} onChange={(event) => setWebsite(event.target.value)} autoComplete="off" tabIndex={-1} aria-hidden="true" className="absolute -left-[9999px] h-px w-px opacity-0" />
-            <TurnstileWidget onToken={(token) => { setTurnstileToken(token); if (token) setTurnstileError(""); }} onError={(code) => { setTurnstileError(code === "110200" ? "هذا النطاق غير مضاف إلى إعدادات Turnstile." : "تعذر إكمال التحقق الأمني. أعد تحميل الصفحة وحاول مرة أخرى."); }} />
+            {/* Turnstile component completely removed from here */}
             <button type="submit" disabled={loading} className="btn-glow-pulse flex w-full items-center justify-center gap-2.5 rounded-xl gradient-luxe py-4 text-base font-black text-[#111] shadow-[0_8px_32px_-8px_rgba(212,175,55,0.6)] transition hover:brightness-110 disabled:opacity-50">{loading ? <Loader2 className="animate-spin" size={20} /> : <Crown size={20} />}{loading ? (isLogin ? t("auth.loggingIn") : t("auth.creating")) : isLogin ? t("auth.login") : t("auth.createAccount")}</button>
           </form>
           <button type="button" onClick={() => setAuthMode(!isLogin)} className="mt-5 flex w-full items-center justify-center gap-2 text-center text-sm font-black text-[var(--color-primary)] transition hover:text-[var(--color-gold-bright)]"><ArrowLeft size={16} />{isLogin ? t("auth.noAccount") : t("auth.hasAccount")}</button>

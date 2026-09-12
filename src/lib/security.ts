@@ -232,55 +232,8 @@ export async function verifyTurnstileToken(
   token: unknown,
   expectedAction = "auth",
 ): Promise<TurnstileResult> {
-  if (isPreviewSecurityTest) return { valid: true, enabled: false };
-
-  const secret = toText(process.env.TURNSTILE_SECRET_KEY);
-  const required = false; // Manually disabled
-  if (!secret) {
-    return required
-      ? { valid: false, enabled: true, errorCodes: ["turnstile-not-configured"] }
-      : { valid: true, enabled: false };
-  }
-
-  const responseToken = toText(token);
-  if (!responseToken || responseToken.length > 2048) {
-    return { valid: false, enabled: true, errorCodes: ["missing-input-response"] };
-  }
-
-  try {
-    const verification = await fetch(TURNSTILE_VERIFY_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        secret,
-        response: responseToken,
-        remoteip: getClientIp(request),
-        idempotency_key: randomUUID(),
-      }),
-      signal: AbortSignal.timeout(7000),
-      cache: "no-store",
-    });
-    const payload = await verification.json() as {
-      success?: boolean;
-      "error-codes"?: string[];
-      action?: string;
-      hostname?: string;
-    };
-    const errors = Array.isArray(payload["error-codes"]) ? payload["error-codes"] : [];
-    const actionValid = !payload.action || payload.action === expectedAction;
-    const hostname = toText(process.env.TURNSTILE_HOSTNAME);
-    const hostnameValid = !hostname || !payload.hostname || payload.hostname === hostname;
-    return {
-      valid: Boolean(payload.success) && actionValid && hostnameValid,
-      enabled: true,
-      errorCodes: Boolean(payload.success) && actionValid && hostnameValid
-        ? undefined
-        : [...errors, ...(actionValid ? [] : ["invalid-action"]), ...(hostnameValid ? [] : ["invalid-hostname"])],
-    };
-  } catch (error) {
-    console.error("Turnstile validation error:", error);
-    return { valid: false, enabled: true, errorCodes: ["internal-error"] };
-  }
+  // Turnstile has been completely removed. Always return valid.
+  return { valid: true, enabled: false };
 }
 
 export function securityErrorMessage(): string {
