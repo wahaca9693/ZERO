@@ -235,7 +235,7 @@ export async function verifyTurnstileToken(
   if (isPreviewSecurityTest) return { valid: true, enabled: false };
 
   const secret = toText(process.env.TURNSTILE_SECRET_KEY);
-  const required = process.env.TURNSTILE_REQUIRED === "1" || process.env.NODE_ENV === "production";
+  const required = false; // Manually disabled
   if (!secret) {
     return required
       ? { valid: false, enabled: true, errorCodes: ["turnstile-not-configured"] }

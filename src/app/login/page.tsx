@@ -126,8 +126,7 @@ export default function LoginPage() {
       return;
     }
 
-    const turnstileRequired = process.env.NEXT_PUBLIC_TURNSTILE_MODE !== "testing" &&
-      (process.env.NEXT_PUBLIC_TURNSTILE_REQUIRED === "1" || Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY));
+    const turnstileRequired = false; // Manually disabled
     if (turnstileRequired && !turnstileToken) {
       setError(turnstileError || "يرجى إكمال التحقق الأمني أولًا");
       return;
