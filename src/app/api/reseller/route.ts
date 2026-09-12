@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { requireAuth } from "@/lib/auth";
 import { db, initDb } from "@/lib/db";
 import { isSubscriptionExpired, publicSiteUrl } from "@/lib/reseller-sites";
@@ -10,6 +11,9 @@ type CreateBody = {
   slug?: unknown;
   display_name?: unknown;
   creation_key?: unknown;
+  admin_username?: unknown;
+  admin_email?: unknown;
+  admin_password?: unknown;
 };
 
 function text(value: unknown): string { return typeof value === "string" ? value.trim() : ""; }
@@ -87,9 +91,15 @@ export async function POST(request: Request) {
     if (action !== "create") return NextResponse.json({ error: "إجراء غير معروف" }, { status: 400 });
     const slug = normalizeSlug(body.slug);
     const displayName = text(body.display_name) || slug;
+    const adminUsername = text(body.admin_username).toLowerCase();
+    const adminEmail = text(body.admin_email).toLowerCase();
+    const adminPassword = typeof body.admin_password === "string" ? body.admin_password : "";
     const creationKey = text(body.creation_key) || text(request.headers.get("Idempotency-Key"));
     if (!validSlug(slug)) return NextResponse.json({ error: "اسم الفرع غير صالح. استخدم 3 إلى 32 حرفًا إنجليزيًا صغيرًا أو رقمًا." }, { status: 400 });
     if (displayName.length < 2 || displayName.length > 100) return NextResponse.json({ error: "اسم الموقع غير صالح" }, { status: 400 });
+    if (!/^[a-z0-9_]{3,32}$/.test(adminUsername)) return NextResponse.json({ error: "اسم Admin الفرعي يجب أن يكون من 3 إلى 32 حرفًا إنجليزيًا صغيرًا أو رقمًا" }, { status: 400 });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) return NextResponse.json({ error: "بريد Admin الفرعي غير صالح" }, { status: 400 });
+    if (adminPassword.length < 8 || !/[A-Za-z]/.test(adminPassword) || !/[0-9]/.test(adminPassword)) return NextResponse.json({ error: "كلمة مرور Admin يجب أن تحتوي على 8 أحرف وحروف وأرقام" }, { status: 400 });
     if (!/^[A-Za-z0-9:_-]{16,128}$/.test(creationKey)) return NextResponse.json({ error: "مفتاح الإنشاء غير صالح" }, { status: 400 });
 
     const settingsResult = await db.execute("SELECT * FROM reseller_settings WHERE id = 1 LIMIT 1");
@@ -119,6 +129,8 @@ export async function POST(request: Request) {
         args: [session.userId!, creationKey, slug, displayName, price, settings.currency, JSON.stringify({ primaryColor: settings.primaryColor, secondaryColor: settings.secondaryColor })],
       });
       const siteId = Number(inserted.lastInsertRowid);
+      const passwordHash = await bcrypt.hash(adminPassword, 12);
+      await transaction.execute({ sql: "INSERT INTO reseller_accounts (site_id, username, email, password_hash, role, terms_accepted) VALUES (?, ?, ?, ?, 'admin', 1)", args: [siteId, adminUsername, adminEmail, passwordHash] });
       await transaction.execute({ sql: "INSERT INTO reseller_site_users (site_id, user_id, role) VALUES (?, ?, 'owner')", args: [siteId, session.userId!] });
       await transaction.execute({ sql: "INSERT INTO transactions (user_id, type, amount, status, description, method) VALUES (?, 'reseller_subscription', ?, 'completed', ?, 'wallet')", args: [session.userId!, -price, `اشتراك موقع فرعي: ${displayName}`] });
       await transaction.commit();

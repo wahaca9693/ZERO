@@ -206,6 +206,22 @@ const schemaStatements = [
     FOREIGN KEY (site_id) REFERENCES reseller_sites(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )`,
+  `CREATE TABLE IF NOT EXISTS reseller_accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    username TEXT NOT NULL,
+    email TEXT,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user',
+    balance REAL NOT NULL DEFAULT 0,
+    is_banned INTEGER NOT NULL DEFAULT 0,
+    terms_accepted INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (site_id, username),
+    UNIQUE (site_id, email),
+    FOREIGN KEY (site_id) REFERENCES reseller_sites(id) ON DELETE CASCADE
+  )`,
   `CREATE TABLE IF NOT EXISTS asiacell_admin (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     phone TEXT,
@@ -515,6 +531,7 @@ const indexStatements = [
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_reseller_sites_owner_slug ON reseller_sites(owner_user_id, slug)`,
   `CREATE INDEX IF NOT EXISTS idx_reseller_sites_owner_status ON reseller_sites(owner_user_id, status, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_reseller_site_users_user ON reseller_site_users(user_id, site_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_reseller_accounts_site ON reseller_accounts(site_id, role, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_reseller_requests_user_created ON reseller_requests(user_id, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_free_offers_active ON free_service_offers(is_active, updated_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_free_usages_user_offer ON free_service_usages(user_id, offer_id, created_at DESC)`,
