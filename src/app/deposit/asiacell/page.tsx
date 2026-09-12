@@ -303,7 +303,7 @@ export default function AsiacellDepositPage() {
   };
 
   const inputClass = "w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-white outline-none transition focus:border-[var(--color-primary)]";
-  const actionClass = "flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] py-3 text-sm font-black text-black shadow-lg shadow-[var(--color-primary)]/10 disabled:cursor-not-allowed disabled:opacity-50";
+  const actionClass = "flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] py-3 text-sm font-black text-black shadow-lg shadow-[var(--color-primary)]/10 disabled:cursor-not-allowed disabled:opacity-50 bg-yellow-500 hover:bg-yellow-600";
   const gatewayAvailable = Boolean(gatewayStatus.connected || gatewayStatus.admin_connected);
 
   return (

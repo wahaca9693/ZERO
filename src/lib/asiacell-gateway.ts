@@ -15,12 +15,12 @@ function stringField(data: JsonRecord, key: string): string {
   return value === null || value === undefined ? "" : String(value);
 }
 
-export const AC_API = "https://app.asiacell.com";
+export const AC_API = "https://odpapp.asiacell.com";
 export const ASIACELL_TRANSFER_FEE_IQD = 500;
-export const AC_API_KEY = "1ccbc4c913bc4ce785a0a2de444aa0d6";
+export const AC_API_KEY = process.env.ASIACELL_API_KEY || "1ccbc4c913bc4ce785a0a2de444aa0d6";
 
 export const BASE_HEADERS: Record<string, string> = {
-  Host: "odpapp.asiacell.com",
+  
   "X-Odp-Api-Key": AC_API_KEY,
   "Cache-Control": "no-cache",
   "X-Os-Version": "9",
@@ -75,7 +75,7 @@ export function authHeaders(deviceId: string, accessToken: string): Record<strin
 
 export function topupHeaders(deviceId: string, accessToken: string): Record<string, string> {
   return {
-    Host: "odpapp.asiacell.com",
+    
     "Cache-Control": "no-cache",
     Deviceid: deviceId,
     "X-Os-Version": "9",
