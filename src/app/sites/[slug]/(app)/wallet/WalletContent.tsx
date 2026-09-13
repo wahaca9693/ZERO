@@ -55,7 +55,6 @@ export default function WalletContent({ slug, siteName, primary, secondary, expi
   return (
     <div className="space-y-6" style={{ "--site-primary": primary, "--site-secondary": secondary } as React.CSSProperties}>
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Balance Card */}
         <div className="lg:col-span-2 rounded-3xl border border-white/5 bg-white/[0.03] p-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--site-primary)]/10 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2" />
           <div className="relative z-10 space-y-6">
@@ -85,7 +84,6 @@ export default function WalletContent({ slug, siteName, primary, secondary, expi
           </div>
         </div>
 
-        {/* Quick Deposit */}
         <div className="rounded-3xl border border-white/5 bg-white/[0.03] p-6 space-y-6">
           <h3 className="text-xl font-black">شحن سريع</h3>
           <div className="space-y-3">

@@ -1,8 +1,6 @@
 import { notFound } from "next/navigation";
 import { initDb } from "@/lib/db";
 import { loadPublicSite, publicSiteData } from "@/lib/reseller-sites";
-import DashboardContent from "./dashboard/page"; // This is a placeholder, should be a separate content component
-import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { LayoutDashboard, ShoppingBag, Wallet, User, Settings, Ticket, MessageSquare } from "lucide-react";
 
@@ -35,7 +33,6 @@ export default async function ResellerLayout({ children, params }: { children: R
   return (
     <div className="min-h-screen bg-[#0b0b09] text-white font-sans" style={{ "--site-primary": primary, "--site-secondary": secondary } as React.CSSProperties}>
       <div className="flex">
-        {/* Sidebar */}
         <aside className="w-64 h-screen sticky top-0 border-r border-white/5 bg-[#0f0f0f] p-6 flex flex-col hidden lg:flex">
           <div className="mb-10 flex items-center gap-3 px-2">
             {logoUrl ? (
@@ -64,7 +61,6 @@ export default async function ResellerLayout({ children, params }: { children: R
           </div>
         </aside>
 
-        {/* Content */}
         <main className="flex-1 p-4 sm:p-8 overflow-x-hidden">
           {children}
         </main>
