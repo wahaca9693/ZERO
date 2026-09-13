@@ -41,7 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       sql: "SELECT id, role FROM reseller_accounts WHERE username = ? AND site_id = ? LIMIT 1",
       args: [username, loaded.site.id],
     });
-    const user = result.rows[0] as { id: number; role: string } | undefined;
+    const user = result.rows[0] as unknown as { id: number; role: string } | undefined;
 
     const response = NextResponse.json({ success: true });
     if (user) {

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db, initDb } from "@/lib/db";
 import { loadPublicSite } from "@/lib/reseller-sites";
 import bcrypt from "bcryptjs";
-import { getIronSession, type IronSessionData } from "iron-session";
+import { getIronSession } from "iron-session";
 
 const opts = {
   password: process.env.SESSION_SECRET || "complex_password_at_least_32_chars_long_for_security",
@@ -15,14 +15,6 @@ const opts = {
     path: "/",
   },
 };
-
-declare module "iron-session" {
-  interface IronSessionData {
-    userId?: number;
-    siteSlug?: string;
-    role?: string;
-  }
-}
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
@@ -37,15 +29,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       sql: "SELECT id, password_hash, role FROM reseller_accounts WHERE username = ? AND site_id = ? LIMIT 1",
       args: [username, loaded.site.id],
     });
-    const user = result.rows[0] as { id: number; password_hash: string; role: string } | undefined;
+    const user = result.rows[0] as unknown as { id: number; password_hash: string; role: string } | undefined;
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return NextResponse.json({ error: "اسم المستخدم أو كلمة المرور غير صحيحة" }, { status: 401 });
     }
 
     const response = NextResponse.json({ success: true });
-    const session = await getIronSession<{ userId?: number; siteSlug?: string; role?: string }>(request, response, {
-      ...opts,
-    });
+    const session = await getIronSession(request, response, opts);
     session.userId = user.id;
     session.siteSlug = slug;
     session.role = user.role;

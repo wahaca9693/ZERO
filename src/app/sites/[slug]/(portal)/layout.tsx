@@ -3,8 +3,6 @@ import { initDb } from "@/lib/db";
 import { loadPublicSite, publicSiteData } from "@/lib/reseller-sites";
 import ProviderShell from "./ProviderShell";
 
-type Props = { params: Promise<{ slug: string }> };
-
 async function getSiteData(slug: string) {
   await initDb();
   const loaded = await loadPublicSite(slug);
@@ -14,7 +12,7 @@ async function getSiteData(slug: string) {
   return { site, expired: loaded.expired };
 }
 
-export default async function PortalLayout({ children, params }: { children: React.ReactNode; params: Props }) {
+export default async function PortalLayout({ children, params }: { children: React.ReactNode; params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const data = await getSiteData(slug);
   if (!data) notFound();
