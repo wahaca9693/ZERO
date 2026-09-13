@@ -176,6 +176,8 @@ const schemaStatements = [
     faq_json TEXT NOT NULL DEFAULT '[{"q":"ما هو الموقع الفرعي؟","a":"مساحة مستقلة باسمك داخل منصة Trendcom لإدارة الخدمات والمستخدمين."},{"q":"هل أستطيع تغيير الألوان؟","a":"نعم، يتيح لك النظام تخصيص الهوية والألوان من لوحة موقعك."},{"q":"هل أستطيع إضافة مزودين؟","a":"تتم إضافة المزودين وفق الصلاحية والخطة التي يحددها Admin."}]',
     primary_color TEXT NOT NULL DEFAULT '#f97316',
     secondary_color TEXT NOT NULL DEFAULT '#fbbf24',
+    trial_days INTEGER NOT NULL DEFAULT 0,
+    max_sites_per_user INTEGER NOT NULL DEFAULT 1,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`,
   `INSERT OR IGNORE INTO reseller_settings (id) VALUES (1)`,
