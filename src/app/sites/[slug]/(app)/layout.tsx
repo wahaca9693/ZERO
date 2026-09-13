@@ -3,24 +3,24 @@ import { initDb } from "@/lib/db";
 import { loadPublicSite, publicSiteData } from "@/lib/reseller-sites";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  CreditCard,
-  Wallet,
-  Settings,
-  ShoppingBag,
-  Users,
-  Ticket,
-  LogOut,
-  Menu,
-  X,
-  ChevronDown,
-  Bell,
-  HelpCircle,
-  ArrowRight,
-  Package,
-  DollarSign,
-  Shield,
+import { 
+  LayoutDashboard, 
+  CreditCard, 
+  Wallet, 
+  Settings, 
+  ShoppingBag, 
+  Users, 
+  Ticket, 
+  LogOut, 
+  Menu, 
+  X, 
+  ChevronDown, 
+  Bell, 
+  HelpCircle, 
+  ArrowRight, 
+  Package, 
+  DollarSign, 
+  Shield, 
   BarChart2,
 } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -109,7 +109,6 @@ function ResellerAppShell({
   const [notifications, setNotifications] = useState<Array<{id: string, title: string, message: string, time: string, read: boolean}>>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Fetch user data and notifications
   useEffect(() => {
     fetch(`/api/sites/${slug}/user/me`)
       .then(res => res.json())
@@ -141,7 +140,6 @@ function ResellerAppShell({
 
   return (
     <div className="min-h-screen bg-[#0b0b09]" style={{ "--site-primary": primary, "--site-secondary": secondary } as React.CSSProperties}>
-      {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
           className="fixed inset-0 z-40 bg-black/50 lg:hidden" 
@@ -150,13 +148,11 @@ function ResellerAppShell({
         />
       )}
 
-      {/* Sidebar */}
       <aside 
         className={`fixed inset-y-0 left-0 z-50 w-64 transform bg-[#111] border-r border-white/10 transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
         style={{ "--site-primary": primary, "--site-secondary": secondary } as React.CSSProperties}
       >
         <div className="flex h-full flex-col">
-          {/* Logo & Brand */}
           <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
             <Link href={`/sites/${slug}/dashboard`} className="flex items-center gap-3">
               {logoUrl ? (
@@ -175,7 +171,6 @@ function ResellerAppShell({
             </button>
           </div>
 
-          {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-4 space-y-1" aria-label="التنقل الرئيسي">
             {navigation.map((item) => {
               const isActive = pathname === `/sites/${slug}${item.href}` || pathname.startsWith(`/sites/${slug}${item.href}/`);
@@ -198,7 +193,6 @@ function ResellerAppShell({
             })}
           </nav>
 
-          {/* User Menu Bottom */}
           <div className="border-t border-white/10 p-4">
             <div className="flex items-center gap-3 rounded-xl bg-white/5 p-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--site-primary)] to-[var(--site-secondary)] text-[#111] font-black text-lg">
@@ -213,7 +207,6 @@ function ResellerAppShell({
         </div>
       </aside>
 
-      {/* Mobile menu button */}
       <button
         className="fixed bottom-4 right-4 z-40 lg:hidden rounded-full bg-[var(--site-primary)] p-3 shadow-lg shadow-[var(--site-primary)]/30"
         onClick={() => setSidebarOpen(true)}
@@ -223,9 +216,7 @@ function ResellerAppShell({
         <Menu size={24} className="text-black" />
       </button>
 
-      {/* Main Content */}
       <main className="lg:pl-64 min-h-screen">
-        {/* Top Bar */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-white/10 bg-[#0b0b09]/80 backdrop-blur-xl px-4 lg:px-8">
           <div className="flex items-center gap-4">
             <h1 className="text-xl font-black text-white lg:hidden">{siteName}</h1>
@@ -236,11 +227,10 @@ function ResellerAppShell({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Notifications */}
             <div className="relative">
               <button
                 className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
-                onClick={() => setNotifications(prev => prev.length > 0 ? [] : notifications)}
+                onClick={() => setNotifications(prev => prev.length > 0 ? [] : [])}
                 aria-label="الإشعارات"
               >
                 <Bell className="h-5 w-5" />
@@ -252,7 +242,6 @@ function ResellerAppShell({
               </button>
             </div>
 
-            {/* User Menu */}
             <div className="relative">
               <button
                 className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
@@ -286,7 +275,6 @@ function ResellerAppShell({
           </div>
         </header>
 
-        {/* Page Content */}
         <div className="p-4 lg:p-8" style={{ "--site-primary": primary, "--site-secondary": secondary } as React.CSSProperties}>
           {expired && (
             <div className="mb-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm font-bold text-amber-100">
