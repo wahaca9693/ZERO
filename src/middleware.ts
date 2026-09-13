@@ -17,7 +17,7 @@ const sessionOptions = {
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   
-  const siteMatch = pathname.match(/^\\/sites\\/([^/]+)\\/(.+)/);
+  const siteMatch = pathname.match(/^\/sites\/([^/]+)\/(.+)/);
   if (!siteMatch) return NextResponse.next();
   
   const slug = siteMatch[1];

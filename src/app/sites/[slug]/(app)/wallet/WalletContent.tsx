@@ -12,282 +12,127 @@ type Props = {
   expired: boolean;
 };
 
-const methods = [
-  { 
-    id: "asiacell", 
-    name: "آسياسيل", 
-    icon: () => <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M17 18c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2s2 .9 2 2v6c0 1.1-.9 2-2 2zm-10 0c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2s2 .9 2 2v6c0 1.1-.9 2-2 2zm14-14H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H3V6h18v14z"/></svg>,
-    name: "آسياسيل", 
-    color: "bg-green-500/20 text-green-400",
-    description: "شحن فوري عبر رقم آسياسيل",
-    instructions: "أدخل رقم آسياسيل وسيتم إرسال رمز التحقق",
-    minAmount: 1000,
-    fee: 0,
-  },
-  { 
-    id: "crypto", 
-    name: "العملات الرقمية", 
-    icon: () => <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>,
-    name: "العملات الرقمية", 
-    color: "bg-orange-500/20 text-orange-400",
-    description: "USDT, BTC, ETH وأكثر",
-    instructions: "اختر العملة وأرسل المبلغ للمحفظة المعروضة",
-    minAmount: 10,
-    fee: 0,
-  },
-  { 
-    id: "card", 
-    name: "بطاقة مصرفية", 
-    icon: () => <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12z"/></svg>,
-    name: "بطاقة مصرفية", 
-    color: "bg-blue-500/20 text-blue-400",
-    description: "Visa, Mastercard, مدى",
-    instructions: "أدخل بيانات البطاقة للشحن الفوري",
-    minAmount: 5,
-    fee: 2.5,
-  },
-];
-
-export default function WalletContent({ slug, siteName, primary, secondary, expired }: { slug: string; siteName: string; primary: string; secondary: string; expired: boolean }) {
+export default function WalletContent({ slug, siteName, primary, secondary, expired }: Props) {
   const [activeMethod, setActiveMethod] = useState("asiacell");
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
   const methods = [
-    { 
-      id: "asiacell", 
-      name: "آسياسيل", 
-      icon: () => <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M17 18c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2s2 .9 2 2v6c0 1.1-.9 2-2 2zm-10 0c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2s2 .9 2 2v6c0 1.1-.9 2-2 2zm14-14H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H3V6h18v14z"/></svg>,
-      name: "آسياسيل", 
-      color: "bg-green-500/20 text-green-400",
-      description: "شحن فوري عبر رقم آسياسيل",
-      instructions: "أدخل رقم آسياسيل وسيتم إرسال رمز التحقق",
-      minAmount: 1000,
-      fee: 0,
-    },
-    { 
-      id: "crypto", 
-      name: "العملات الرقمية", 
-      icon: () => <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>,
-      name: "العملات الرقمية", 
-      color: "bg-orange-500/20 text-orange-400",
-      description: "USDT, BTC, ETH وأكثر",
-      instructions: "اختر العملة وأرسل المبلغ للمحفظة المعروضة",
-      minAmount: 10,
-      fee: 0,
-    },
-    { 
-      id: "card", 
-      name: "بطاقة مصرفية", 
-      icon: () => <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12z"/></svg>,
-      name: "بطاقة مصرفية", 
-      color: "bg-blue-500/20 text-blue-400",
-      description: "Visa, Mastercard, مدى",
-      instructions: "أدخل بيانات البطاقة للشحن الفوري",
-      minAmount: 5,
-      fee: 2.5,
-    },
+    { id: "asiacell", name: "آسياسيل", icon: "📱", desc: "تحويل مباشر عبر الرقم" },
+    { id: "crypto", name: "عملات رقمية", icon: "🪙", desc: "USDT (TRC20)" },
+    { id: "card", name: "بطاقة ائتمانية", icon: "💳", desc: "Visa / Mastercard" },
   ];
-
-  const [activeMethod, setActiveMethod] = useState("asiacell");
-  const [amount, setAmount] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
-
-  const methods = [
-    { 
-      id: "asiacell", 
-      name: "آسياسيل", 
-      icon: () => <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M17 18c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2s2 .9 2 2v6c0 1.1-.9 2-2 2zm-10 0c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2s2 .9 2 2v6c0 1.1-.9 2-2 2zm14-14H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H3V6h18v14z"/></svg>,
-      name: "آسياسيل", 
-      color: "bg-green-500/20 text-green-400",
-      description: "شحن فوري عبر رقم آسياسيل",
-      instructions: "أدخل رقم آسياسيل وسيتم إرسال رمز التحقق",
-      minAmount: 1000,
-      fee: 0,
-    },
-    { 
-      id: "crypto", 
-      name: "العملات الرقمية", 
-      icon: () => <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>,
-      name: "العملات الرقمية", 
-      color: "bg-orange-500/20 text-orange-400",
-      description: "USDT, BTC, ETH وأكثر",
-      instructions: "اختر العملة وأرسل المبلغ للمحفظة المعروضة",
-      minAmount: 10,
-      fee: 0,
-    },
-    { 
-      id: "card", 
-      name: "بطاقة مصرفية", 
-      icon: () => <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12z"/></svg>,
-      name: "بطاقة مصرفية", 
-      color: "bg-blue-500/20 text-blue-400",
-      description: "Visa, Mastercard, مدى",
-      instructions: "أدخل بيانات البطاقة للشحن الفوري",
-      minAmount: 5,
-      fee: 2.5,
-    },
-  ];
-
-  const [activeMethod, setActiveMethod] = useState("asiacell");
-  const [amount, setAmount] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
   const currentMethod = methods.find(m => m.id === activeMethod) || methods[0];
 
   const handleDeposit = async () => {
-    if (!amount || parseFloat(amount) < currentMethod.minAmount) {
-      setMessage({ text: `الحد الأدنى للإيداع ${currentMethod.minAmount} ${currentMethod.id === "crypto" ? "$" : "د.ع"}`, error: true });
+    if (!amount || parseFloat(amount) <= 0) {
+      setMessage({ text: "يرجى إدخال مبلغ صحيح", error: true });
       return;
     }
     setLoading(true);
     setMessage(null);
     try {
-      const response = await fetch(`/api/sites/${slug}/wallet/deposit`, {
+      const res = await fetch(`/sites/${slug}/api/deposit`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ method: activeMethod, amount: parseFloat(amount) }),
+        body: JSON.stringify({ amount, method: activeMethod }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "فشل الإيداع");
-      setMessage({ text: data.message || "تم الإيداع بنجاح" });
-      setAmount("");
-    } catch (error) {
-      setMessage({ text: error instanceof Error ? error.message : "حدث خطأ", error: true });
+      const data = await res.json();
+      if (data.success) {
+        setMessage({ text: "تم إرسال طلب الإيداع بنجاح!", error: false });
+        setAmount("");
+      } else {
+        setMessage({ text: data.error || "حدث خطأ أثناء الإيداع", error: true });
+      }
+    } catch {
+      setMessage({ text: "فشل الاتصال بالخادم", error: true });
     } finally {
       setLoading(false);
     }
   };
 
-  const currentMethod = methods.find(m => m.id === activeMethod) || methods[0];
-
   return (
     <div className="space-y-6" style={{ "--site-primary": primary, "--site-secondary": secondary } as React.CSSProperties}>
-      <div className="rounded-2xl bg-gradient-to-br from-[var(--site-primary)]/20 to-[var(--site-secondary)]/20 border border-[var(--site-primary)]/30 p-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-2xl font-black text-white">شحن الرصيد</h1>
-            <p className="mt-1 text-zinc-400">رصيدك الحالي: <span className="font-black text-emerald-400">1,250.75 $</span></p>
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Balance Card */}
+        <div className="lg:col-span-2 rounded-3xl border border-white/5 bg-white/[0.03] p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--site-primary)]/10 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="relative z-10 space-y-6">
+            <div className="flex items-center justify-between">
+              <p className="text-zinc-400 font-bold">الرصيد الحالي</p>
+              <span className="px-3 py-1 rounded-full bg-white/5 text-xs font-bold text-zinc-500">تحديث تلقائي</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-6xl font-black tracking-tighter">$0.00</h2>
+              <span className="text-xl font-bold text-zinc-500">USD</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {[
+                { label: "إيداعات", value: "$0.00", icon: "⬇️" },
+                { label: "سحوبات", value: "$0.00", icon: "⬆️" },
+                { label: "منفق", value: "$0.00", icon: "📉" },
+                { label: "أرباح", value: "$0.00", icon: "📈" },
+              ].map((stat, i) => (
+                <div key={i} className="rounded-2xl border border-white/5 bg-white/5 p-4">
+                  <div className="flex items-center gap-2 text-xs text-zinc-500 mb-1">
+                    <span>{stat.icon}</span> {stat.label}
+                  </div>
+                  <p className="text-lg font-black">{stat.value}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-        <h2 className="mb-4 text-xl font-black text-white">اختر طريقة الدفع</h2>
-        <div className="flex flex-wrap gap-4">
-          {methods.map((method) => (
-            <button
-              key={method.id}
-              onClick={() => setActiveMethod(method.id)}
-              className={`flex flex-1 min-w-[180px] max-w-[250px] items-center gap-4 rounded-xl border-2 p-4 transition-all ${
-                activeMethod === method.id
-                  ? "border-[var(--site-primary)] bg-[var(--site-primary)]/10"
-                  : "border-white/10 bg-white/5 hover:border-[var(--site-primary)]/50 hover:bg-white/5"
-              }`}
-            >
-              <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${method.color}`}>
-                <method.icon size={24} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-white">{method.name}</p>
-                <p className="text-xs text-zinc-500">{method.description}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
+        {/* Quick Deposit */}
+        <div className="rounded-3xl border border-white/5 bg-white/[0.03] p-6 space-y-6">
+          <h3 className="text-xl font-black">شحن سريع</h3>
+          <div className="space-y-3">
+            {methods.map((m) => (
+              <button 
+                key={m.id} 
+                onClick={() => setActiveMethod(m.id)}
+                className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                  activeMethod === m.id ? "border-[var(--site-primary)] bg-[var(--site-primary)]/10 text-white" : "border-white/5 bg-white/5 text-zinc-400 hover:bg-white/10"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">{m.icon}</span>
+                  <span className="font-bold">{m.name}</span>
+                </div>
+                {activeMethod === m.id && <CheckCircle2 size={18} className="text-[var(--site-primary)]" />}
+              </button>
+            ))}
+          </div>
 
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-        <h2 className="mb-4 text-xl font-black text-white">تفاصيل الإيداع</h2>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-zinc-400 mb-2">المبلغ</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-zinc-500">المبلغ المطلوب شحنه</label>
+            <div className="relative">
+              <input 
+                type="number" 
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder={`الحد الأدنى: ${currentMethod.minAmount}`}
-                className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-[var(--site-primary)]"
-                min={currentMethod.minAmount}
-                step={currentMethod.id === "crypto" ? "0.01" : "1"}
+                placeholder="0.00"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-[var(--site-primary)] font-black text-lg"
               />
-              <span className="px-4 py-3 text-zinc-400">
-                {currentMethod.id === "crypto" ? "USDT" : "د.ع"}
-              </span>
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 font-bold">USD</span>
             </div>
-            <p className="mt-1 text-xs text-zinc-500">الحد الأدنى: {currentMethod.minAmount} {currentMethod.id === "crypto" ? "$" : "د.ع"}</p>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <h3 className="mb-3 font-bold text-white">التعليمات</h3>
-            <p className="text-sm text-zinc-400 mb-3">{currentMethod.instructions}</p>
-            <div className="rounded-lg bg-white/5 p-3 text-sm">
-              <p className="font-bold text-white mb-1">مثال:</p>
-              <p className="text-zinc-400">
-                {currentMethod.id === "asiacell" ? "أدخل رقم آسياسيل: 07XXXXXXXXX" : 
-                 currentMethod.id === "crypto" ? "اختر USDT TRC20، أرسل 50 USDT للمحفظة المعروضة" :
-                 "أدخل رقم البطاقة: 4XXX XXXX XXXX XXXX"}
-              </p>
-            </div>
-          </div>
+          <button 
+            onClick={handleDeposit}
+            disabled={loading}
+            className="w-full rounded-2xl bg-[var(--site-primary)] py-4 font-black text-black hover:brightness-110 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="animate-spin" size={20} /> : "تأكيد عملية الشحن"}
+          </button>
 
           {message && (
-            <div className={`rounded-xl p-3 text-sm font-bold ${message.error ? "bg-red-500/10 text-red-300" : "bg-emerald-500/10 text-emerald-300"}`}>
+            <div className={`p-4 rounded-2xl text-sm font-bold ${message.error ? "bg-red-500/10 text-red-400 border border-red-500/20" : "bg-green-500/10 text-green-400 border border-green-500/20"}`}>
               {message.text}
             </div>
           )}
-
-          <button
-            onClick={handleDeposit}
-            disabled={loading || !amount || parseFloat(amount) < currentMethod.minAmount}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--site-primary)] py-4 font-black text-black hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : <ArrowRight size={18} />}
-            {loading ? "جاري المعالجة..." : `إيداع ${amount} ${currentMethod.id === "crypto" ? "USDT" : "د.ع"}`}
-          </button>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-        <div className="border-b border-white/10 px-6 py-4">
-          <h2 className="text-xl font-black text-white">آخر عمليات الإيداع</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-white/10 bg-white/5">
-                <th className="px-6 py-3 text-right text-sm font-bold text-zinc-400">المعاملة</th>
-                <th className="px-6 py-3 text-right text-sm font-bold text-zinc-400">الطريقة</th>
-                <th className="px-6 py-3 text-right text-sm font-bold text-zinc-400">المبلغ</th>
-                <th className="px-6 py-3 text-right text-sm font-bold text-zinc-400">الحالة</th>
-                <th className="px-6 py-3 text-right text-sm font-bold text-zinc-400">التاريخ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { id: "DEP-001", method: "آسياسيل", amount: 150, status: "completed", date: "2024-01-15 14:30" },
-                { id: "DEP-002", method: "كريبتو (USDT)", amount: 500, status: "completed", date: "2024-01-14 16:45" },
-                { id: "DEP-003", method: "آسياسيل", amount: 100, status: "pending", date: "2024-01-15 16:00" },
-              ].map((dep) => (
-                <tr key={dep.id} className="border-b border-white/10 hover:bg-white/5">
-                  <td className="px-6 py-4 text-right font-bold text-white">{dep.id}</td>
-                  <td className="px-6 py-4 text-right text-zinc-400">{dep.method}</td>
-                  <td className="px-6 py-4 text-right font-bold text-emerald-400">+{dep.amount} {dep.method === "كريبتو (USDT)" ? "USDT" : "د.ع"}</td>
-                  <td className="px-6 py-4 text-right">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${dep.status === "completed" ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`}>
-                      {dep.status === "completed" ? "مكتمل" : "معلق"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right text-zinc-400">{dep.date}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>
