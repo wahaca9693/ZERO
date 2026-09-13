@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { initDb } from "@/lib/db";
-import { db } from "@/lib/db";
+import { db, initDb } from "@/lib/db";
 import { loadPublicSite } from "@/lib/reseller-sites";
 import bcrypt from "bcryptjs";
-import { getIronSession } from "iron-session";
+import { getIronSession, type IronSessionData } from "iron-session";
 
-const sessionOptions = {
+const opts = {
   password: process.env.SESSION_SECRET || "complex_password_at_least_32_chars_long_for_security",
   cookieName: "reseller_session",
   cookieOptions: {
@@ -17,35 +16,42 @@ const sessionOptions = {
   },
 };
 
+declare module "iron-session" {
+  interface IronSessionData {
+    userId?: number;
+    siteSlug?: string;
+    role?: string;
+  }
+}
+
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params;
     const { username, password } = await request.json();
-
     await initDb();
-    const loaded = await (await import("@/lib/reseller-sites")).loadPublicSite(slug);
-    if (!loaded.site) return NextResponse.json({ error: "Site not found" }, { status: 404 });
+
+    const loaded = await loadPublicSite(slug);
+    if (!loaded.site) return NextResponse.json({ error: "الموقع غير موجود" }, { status: 404 });
 
     const result = await db.execute({
-      sql: "SELECT id, password_hash FROM reseller_accounts WHERE username = ? AND site_id = ?",
+      sql: "SELECT id, password_hash, role FROM reseller_accounts WHERE username = ? AND site_id = ? LIMIT 1",
       args: [username, loaded.site.id],
     });
+    const user = result.rows[0] as { id: number; password_hash: string; role: string } | undefined;
+    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+      return NextResponse.json({ error: "اسم المستخدم أو كلمة المرور غير صحيحة" }, { status: 401 });
+    }
 
-    const user = (result.rows as any[])[0];
-    if (!user) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
-
-    const isValid = await bcrypt.compare(password, user.password_hash);
-    if (!isValid) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
-
-    const response = NextResponse.json({ success: true, message: "Logged in successfully" });
-    const session = await getIronSession(request, response, sessionOptions);
-    
+    const response = NextResponse.json({ success: true });
+    const session = await getIronSession<{ userId?: number; siteSlug?: string; role?: string }>(request, response, {
+      ...opts,
+    });
     session.userId = user.id;
-    session.slug = slug;
+    session.siteSlug = slug;
+    session.role = user.role;
     await session.save();
-
     return response;
-  } catch (error) {
-    return NextResponse.json({ error: "Login failed" }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "تعذر تسجيل الدخول" }, { status: 500 });
   }
 }

@@ -42,7 +42,7 @@ export default function ResellerLoginForm({ slug, siteName, logoUrl, primary, se
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "تعذر إتمام العملية");
       setSuccess(registerMode ? "تم إنشاء حسابك داخل هذا الموقع." : "تم تسجيل الدخول.");
-      window.setTimeout(() => router.push(`/sites/${encodeURIComponent(slug)}`), 350);
+      window.setTimeout(() => router.push(`/sites/${encodeURIComponent(slug)}/dashboard`), 350);
     } catch (caught: unknown) { setError(caught instanceof Error ? caught.message : "تعذر إتمام العملية"); } finally { setLoading(false); }
   };
 
