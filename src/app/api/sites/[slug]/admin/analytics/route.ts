@@ -17,11 +17,11 @@ export async function GET(_request: Request, { params }: Params) {
       db.execute({ sql: "SELECT COUNT(*) as c, COALESCE(SUM(amount),0) as total FROM reseller_transactions WHERE site_id = ? AND status = 'completed'", args: [siteId] }),
     ]);
 
-    const users = Number((usersRes.rows[0] as Record<string, unknown>).c || 0);
-    const orders = Number((ordersRes.rows[0] as Record<string, unknown>).c || 0);
-    const ordersTotal = Number((ordersRes.rows[0] as Record<string, unknown>).total || 0);
-    const txCount = Number((txRes.rows[0] as Record<string, unknown>).c || 0);
-    const txTotal = Number((txRes.rows[0] as Record<string, unknown>).total || 0);
+    const users = Number((usersRes.rows[0] as { c?: unknown } | undefined)?.c || 0);
+    const orders = Number((ordersRes.rows[0] as { c?: unknown } | undefined)?.c || 0);
+    const ordersTotal = Number((ordersRes.rows[0] as { total?: unknown } | undefined)?.total || 0);
+    const txCount = Number((txRes.rows[0] as { c?: unknown } | undefined)?.c || 0);
+    const txTotal = Number((txRes.rows[0] as { total?: unknown } | undefined)?.total || 0);
 
     return NextResponse.json({ stats: { users, orders, ordersTotal, txCount, txTotal } });
   } catch (error: unknown) {

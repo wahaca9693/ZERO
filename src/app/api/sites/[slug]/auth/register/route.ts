@@ -24,7 +24,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
         sql: "SELECT COUNT(*) as c FROM reseller_accounts WHERE site_id = ?",
         args: [loaded.site.id],
       });
-      const isFirst = Number((countRes.rows[0] as Record<string, unknown>).c || 0) === 0;
+      const countRow = countRes.rows[0] as { c?: unknown } | undefined;
+      const isFirst = Number(countRow?.c || 0) === 0;
       const role = isFirst ? "admin" : "user";
 
       await db.execute({
