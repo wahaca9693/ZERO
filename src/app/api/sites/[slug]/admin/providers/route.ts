@@ -11,7 +11,7 @@ export async function GET(_request: Request, { params }: Params) {
     await requireResellerAdmin(slug);
     // Read the shared service catalog (same as main platform)
     const result = await db.execute({
-      sql: `SELECT p.id, p.name, p.status,
+      sql: `SELECT p.id, p.name, p.is_active AS status,
                    (SELECT COUNT(*) FROM provider_services ps WHERE ps.provider_id = p.id) AS services_count
             FROM providers p ORDER BY p.id ASC LIMIT 100`,
     });
