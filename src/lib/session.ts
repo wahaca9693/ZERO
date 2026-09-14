@@ -1,27 +1,13 @@
 import { getIronSession } from "iron-session";
 import { cookies } from "next/headers";
+import { sessionOptions, type SessionUser } from "./session-config";
 
-export type SessionUser = {
-  userId?: number;
-  siteSlug?: string;
-  role?: string;
-};
-
-export const sessionOptions = {
-  password: process.env.SESSION_SECRET || "complex_password_at_least_32_chars_long_for_security",
-  cookieName: "reseller_session",
-  cookieOptions: {
-    secure: process.env.NODE_ENV === "production",
-    httpOnly: true,
-    sameSite: "lax" as const,
-    maxAge: 60 * 60 * 24 * 7,
-    path: "/",
-  },
-};
+// Node-runtime only helpers (API routes). Middleware must NOT import this file;
+// it imports session-config.ts directly instead.
+export type { SessionUser } from "./session-config";
 
 /**
  * Reads the iron-session session from the request cookies.
- * Use this inside API route handlers to check authentication.
  */
 export async function getSiteSession(slug: string) {
   try {
@@ -35,8 +21,7 @@ export async function getSiteSession(slug: string) {
 }
 
 /**
- * Convenience wrapper for API routes: returns { ok: false } with 401 JSON when
- * unauthenticated, or { ok: true, session } when valid.
+ * Convenience wrapper for API routes.
  */
 export async function requireSiteAuth(slug: string) {
   const session = await getSiteSession(slug);
@@ -51,3 +36,5 @@ export async function requireSiteAuth(slug: string) {
   }
   return { ok: true as const, session };
 }
+
+export { sessionOptions };

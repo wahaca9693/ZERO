@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { sessionOptions, type SessionUser } from "@/lib/session";
+import { sessionOptions, type SessionUser } from "@/lib/session-config";
 import { getIronSession } from "iron-session";
 
 export async function middleware(request: NextRequest) {
