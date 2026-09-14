@@ -181,22 +181,18 @@ export default function AsiacellAdminPage({ slug }: { slug: string }) {
 
   if (authorized === null) {
     return (
-      <DashboardLayout>
         <div className="flex h-40 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-border)] border-t-[var(--color-primary)]" />
         </div>
-      </DashboardLayout>
     );
   }
 
   if (authorized === false) {
     return (
-      <DashboardLayout>
         <div className="flex h-60 flex-col items-center justify-center text-center text-red-400">
           <AlertCircle size={48} className="mb-3" />
           <h2 className="text-xl font-bold">غير مصرح</h2>
         </div>
-      </DashboardLayout>
     );
   }
 
