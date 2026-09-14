@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Header from "../../../components/Header";
+import Sidebar from "../../../components/Sidebar";
+import BottomNav from "../../../components/BottomNav";
 
 type Props = {
   slug: string;
@@ -14,38 +17,34 @@ type Props = {
   children: React.ReactNode;
 };
 
-const navItems = (slug: string) => [
-  { label: "الرئيسية", href: `/sites/${encodeURIComponent(slug)}/dashboard`, icon: "🏠" },
-  { label: "الخدمات", href: `/sites/${encodeURIComponent(slug)}/services`, icon: "🛒" },
-  { label: "طلباتي", href: `/sites/${encodeURIComponent(slug)}/orders`, icon: "📦" },
-  { label: "المحفظة", href: `/sites/${encodeURIComponent(slug)}/wallet`, icon: "💰" },
-  { label: "الملف", href: `/sites/${encodeURIComponent(slug)}/profile`, icon: "👤" },
-];
-
-const secondaryLinks = (slug: string) => [
-  { label: "شحن الرصيد", href: `/sites/${encodeURIComponent(slug)}/deposit` },
-  { label: "سجل المعاملات", href: `/sites/${encodeURIComponent(slug)}/transactions` },
-];
+type ResellerUser = {
+  id: number;
+  username: string;
+  balance: number;
+  role: string;
+};
 
 export default function ProviderShell({ slug, siteName, logoUrl, primary, secondary, primaryLight, expired, children }: Props) {
   const pathname = usePathname();
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [user, setUser] = useState<ResellerUser | null>(null);
+  const [checked, setChecked] = useState(false);
 
-  // Apply theme CSS vars on the portal root
+  const basePath = `/sites/${encodeURIComponent(slug)}`;
+
   useEffect(() => {
-    setMounted(true);
     const proceed = async () => {
       try {
         const res = await fetch(`/api/sites/${encodeURIComponent(slug)}/auth/me`, { cache: "no-store" });
         const data = await res.json();
-        if (!data.authenticated && !pathname.startsWith(`/sites/${encodeURIComponent(slug)}/login`)) {
-          router.replace(`/sites/${encodeURIComponent(slug)}/login`);
-        }
+        if (data.authenticated && data.user) setUser(data.user);
+        else if (!pathname.startsWith(`${basePath}/login`)) router.replace(`${basePath}/login`);
       } catch {}
+      setChecked(true);
     };
     void proceed();
-  }, [slug, pathname, router]);
+  }, [slug, pathname, router, basePath]);
 
   return (
     <div
@@ -63,65 +62,28 @@ export default function ProviderShell({ slug, siteName, logoUrl, primary, second
         } as React.CSSProperties
       }
     >
-      {/* Top branding bar */}
-      <header className="sticky top-0 z-40 border-b border-white/5 bg-[#0b0b09]/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
-            {logoUrl ? (
-              <img src={logoUrl} alt={siteName} className="h-9 w-auto object-contain" />
-            ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-gold)] text-sm font-black text-[#111]">
-                {siteName.charAt(0)}
-              </div>
-            )}
-            <span className="text-lg font-black text-white">{siteName}</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs font-bold text-zinc-400">
-            {secondaryLinks(slug).map((link) => (
-              <button
-                key={link.href}
-                onClick={() => router.push(link.href)}
-                className="hidden rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-white hover:bg-white/10 sm:block"
-              >
-                {link.label}
-              </button>
-            ))}
-            {expired && <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-amber-400">منتهي الاشتراك</span>}
-            <button
-              onClick={async () => {
-                await fetch(`/api/sites/${encodeURIComponent(slug)}/auth/logout`, { method: "POST" });
-                router.push(`/sites/${encodeURIComponent(slug)}/login`);
-              }}
-              className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-white hover:bg-white/10"
-            >
-              خروج
-            </button>
-          </div>
-        </div>
-      </header>
+      <Header
+        onMenuClick={() => setSidebarOpen(true)}
+        user={user ? { username: user.username, balance: user.balance, role: user.role } : null}
+        basePath={basePath}
+      />
 
-      {/* Bottom nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/5 bg-[#0b0b09]/90 backdrop-blur-xl">
-        <div className="mx-auto grid max-w-md grid-cols-5 gap-1 px-2 py-2">
-          {navItems(slug).map((item) => {
-            const active = pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
-              <button
-                key={item.href}
-                onClick={() => router.push(item.href)}
-                className={`flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] font-bold transition ${
-                  active ? "bg-[var(--color-primary)]/15 text-[var(--color-primary)]" : "text-zinc-400"
-                }`}
-              >
-                <span className="text-lg leading-none">{item.icon}</span>
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+      <Sidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        user={user ? { username: user.username, balance: user.balance, role: user.role } : null}
+        basePath={basePath}
+      />
 
-      <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4">{children}</main>
+      <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4">
+        {checked ? children : (
+          <div className="flex min-h-[60vh] items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-border)] border-t-[var(--color-primary)]" />
+          </div>
+        )}
+      </main>
+
+      <BottomNav basePath={basePath} />
     </div>
   );
 }

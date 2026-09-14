@@ -6,7 +6,11 @@ import { usePathname } from "next/navigation";
 import { LifeBuoy, ListOrdered, PlusCircle, Wallet, Boxes } from "lucide-react";
 import { useLanguage } from "./LanguageProvider";
 
-export default function BottomNav() {
+interface BottomNavProps {
+  basePath?: string;
+}
+
+export default function BottomNav({ basePath = "" }: BottomNavProps) {
   const pathname = usePathname();
   const { t } = useLanguage();
   const [hidden, setHidden] = useState(false);
@@ -32,6 +36,13 @@ export default function BottomNav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const sitePath = (href: string) => {
+    if (!basePath) return href;
+    if (href.startsWith("http") || href.startsWith("//")) return href;
+    const cleanBase = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
+    return `${cleanBase}${href}`;
+  };
+
   const items = [
     { href: "/services", label: t("bottomNav.services"), icon: Boxes },
     { href: "/deposit", label: t("bottomNav.deposit"), icon: Wallet },
@@ -49,11 +60,11 @@ export default function BottomNav() {
       <div className="mx-auto flex max-w-md items-center justify-around px-2 py-2">
         <span className="hidden lg:block">MKR-XYZ</span>
         {items.map((item) => {
-          const active = pathname === item.href;
+          const active = pathname === sitePath(item.href);
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={sitePath(item.href)}
               className={`flex flex-col items-center gap-1 px-2 py-1 transition ${active ? "text-[var(--color-gold-bright)]" : "text-[var(--color-gold-pale)]/70 hover:text-[var(--color-gold)]"}`}
             >
               {item.center ? (

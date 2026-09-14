@@ -9,6 +9,7 @@ interface HeaderProps {
   onMenuClick: () => void;
   user?: { username: string; balance: number; role: string } | null;
   unreadNotifications?: number;
+  basePath?: string;
 }
 
 type NotificationItem = {
@@ -24,14 +25,14 @@ function isNotificationItem(value: unknown): value is NotificationItem {
   return (typeof item.id === "string" || typeof item.id === "number") && typeof item.title === "string" && typeof item.body === "string";
 }
 
-export default function Header({ onMenuClick, unreadNotifications = 0 }: HeaderProps) {
+export default function Header({ onMenuClick, unreadNotifications = 0, basePath = "" }: HeaderProps) {
   const { t } = useLanguage();
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetch("/api/notifications", { cache: "no-store" });
+      const res = await fetch(`${basePath}/api/notifications`, { cache: "no-store" });
       const data = (await res.json()) as { notifications?: unknown };
       const items = Array.isArray(data.notifications) ? data.notifications.filter(isNotificationItem) : [];
       setNotifications(items);
@@ -40,7 +41,7 @@ export default function Header({ onMenuClick, unreadNotifications = 0 }: HeaderP
 
   const markRead = async () => {
     try {
-      await fetch("/api/notifications", { method: "POST" });
+      await fetch(`${basePath}/api/notifications`, { method: "POST" });
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: 1 })));
     } catch {}
   };

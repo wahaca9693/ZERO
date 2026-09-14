@@ -6,6 +6,16 @@ import { getIronSession } from "iron-session";
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  // Rewrite reseller API calls from /sites/{slug}/api/... to /api/sites/{slug}/...
+  // so shared components (Header/Sidebar) can use the same code on the branch.
+  const apiMatch = pathname.match(/^\/sites\/([^/]+)\/api\/(.+)$/);
+  if (apiMatch) {
+    const slug = apiMatch[1];
+    const rest = apiMatch[2];
+    const rewritten = new URL(`/api/sites/${encodeURIComponent(slug)}/${rest}`, request.url);
+    return NextResponse.rewrite(rewritten);
+  }
+
   // Only intercept reseller site protected pages (portal + dashboard areas).
   // Services are public for guests, mirroring the main platform (/services).
   const match = pathname.match(/^\/sites\/([^/]+)\/(dashboard|orders|wallet|deposit|transactions|profile)(\/|$)/);

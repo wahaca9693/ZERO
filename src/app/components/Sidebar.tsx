@@ -34,6 +34,7 @@ interface SidebarProps {
   open: boolean;
   onClose: () => void;
   user: { username: string; balance: number; role: string } | null;
+  basePath?: string;
 }
 
 type MenuItem =
@@ -95,7 +96,7 @@ function parseCustomItems(value: unknown): CustomNavItem[] {
   });
 }
 
-export default function Sidebar({ open, onClose, user }: SidebarProps) {
+export default function Sidebar({ open, onClose, user, basePath = "" }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { t, locale } = useLanguage();
@@ -153,11 +154,24 @@ export default function Sidebar({ open, onClose, user }: SidebarProps) {
   };
   const getDescription = (key: string, fallback: string) => sidebarDescriptions[locale]?.[key] || sidebarDescriptions.en[key] || fallback;
 
-  const logout = async () => {
-          const response = await fetch("/api/auth/logout", { method: "POST" });
-      if (response.ok) clearAuthBootstrap();
-      router.push("/login");
+  // Helper to build correct path with basePath for reseller sites
+  const sitePath = (href: string) => {
+    if (!basePath) return href;
+    if (href.startsWith("http") || href.startsWith("//")) return href;
+    const cleanBase = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
+    return `${cleanBase}${href}`;
+  };
 
+  const logout = async () => {
+          const response = await fetch(sitePath("/api/auth/logout"), { method: "POST" });
+      if (response.ok) clearAuthBootstrap();
+      router.push(sitePath("/login"));
+
+  };
+
+  const isActive = (href: string) => {
+    const fullHref = sitePath(href);
+    return pathname === fullHref.split("?")[0];
   };
 
   const menuItems: MenuItem[] = [
@@ -186,13 +200,9 @@ export default function Sidebar({ open, onClose, user }: SidebarProps) {
       badge: item.badge || undefined,
       badgeColor: item.badge_color,
     })),
-  ];
+  ]);
 
-  const isActive = (href: string) => {
-    return pathname === href.split("?")[0];
-  };
-
-  return (
+    return (
     <>
       {open && (
         <div
@@ -245,7 +255,7 @@ export default function Sidebar({ open, onClose, user }: SidebarProps) {
               const className = `flex items-center justify-between rounded-xl px-3 py-3 transition hover:bg-[var(--color-surface)] ${active ? "bg-[var(--color-surface)]" : ""}`;
 
               return item.type === "link" ? (
-                <Link key={idx} href={item.href} onClick={onClose} className={className}>
+                <Link key={idx} href={sitePath(item.href)} onClick={onClose} className={className}>
                   {content}
                 </Link>
               ) : (
@@ -278,13 +288,13 @@ export default function Sidebar({ open, onClose, user }: SidebarProps) {
                   { label: "إعدادات المواقع الفرعية", description: "السعر والشروط والميزات والأسئلة الشائعة", href: "/admin/reseller-settings", icon: Globe2 },
                   { label: "إعدادات الإدارة", description: getDescription("adminSettings", "ضبط إعدادات التشغيل العامة"), href: "/admin/settings", icon: Settings },
                 ].map((item) => {
-                  const itemPath = item.href.split("#")[0];
-                  const active = pathname === itemPath || (itemPath !== "/admin" && pathname.startsWith(`${itemPath}/`));
+                  const itemPath = sitePath(item.href.split("#")[0]);
+                  const active = pathname === itemPath || (itemPath !== sitePath("/admin") && pathname.startsWith(`${itemPath}/`));
                   const Icon = item.icon;
                   return (
                     <Link
                       key={item.href}
-                      href={item.href}
+                      href={sitePath(item.href)}
                       onClick={onClose}
                       className={`mb-1 flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 transition hover:bg-[var(--color-surface)] ${active ? "bg-[var(--color-surface)]" : ""}`}
                     >
@@ -297,10 +307,10 @@ export default function Sidebar({ open, onClose, user }: SidebarProps) {
                   );
                 })}
                 {adminCustomItems.sort((a, b) => a.sort_order - b.sort_order || a.id - b.id).map((item) => {
-                  const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  const active = pathname === sitePath(item.href) || pathname.startsWith(`${sitePath(item.href)}/`);
                   const Icon = customIconMap[item.icon] || Zap;
                   return (
-                    <Link key={`custom-admin-${item.id}`} href={item.href} onClick={onClose} className={`mb-1 flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 transition hover:bg-[var(--color-surface)] ${active ? "bg-[var(--color-surface)]" : ""}`}>
+                    <Link key={`custom-admin-${item.id}`} href={sitePath(item.href)} onClick={onClose} className={`mb-1 flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 transition hover:bg-[var(--color-surface)] ${active ? "bg-[var(--color-surface)]" : ""}`}>
                       <span className="min-w-0">
                         <span className={`block truncate font-bold ${active ? "text-[var(--color-primary)]" : "text-white"}`}>{customLabel(item)}</span>
                         {customDescription(item) && <span className="mt-0.5 block truncate text-[10px] leading-4 text-zinc-500">{customDescription(item)}</span>}

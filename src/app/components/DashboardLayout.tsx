@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Header from "./Header";
 import BottomNav from "./BottomNav";
@@ -9,6 +9,7 @@ import AuthRequiredGate from "./AuthRequiredGate";
 import { useLiveRefresh } from "./useLiveRefresh";
 import { AUTH_CHANGED_EVENT, type ClientAuthUser } from "./auth-client";
 import { useInitialAuthUser } from "./Providers";
+import { SiteContextProvider, useSiteContext } from "./SiteContext";
 
 type DashboardUser = ClientAuthUser;
 
@@ -23,6 +24,21 @@ let clientRequest: Promise<void> | null = null;
 let clientAuthRevision = 0;
 const CLIENT_SNAPSHOT_TTL_MS = 15_000;
 
+/**
+ * Detect if the current path is a reseller site and extract the slug.
+ */
+function detectResellerSite(pathname: string): { isResellerSite: boolean; basePath: string; slug?: string } {
+  const match = pathname.match(/^\/sites\/([^/]+)/);
+  if (match) {
+    return {
+      isResellerSite: true,
+      basePath: `/sites/${match[1]}`,
+      slug: match[1],
+    };
+  }
+  return { isResellerSite: false, basePath: "", slug: undefined };
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const initialUser = useInitialAuthUser();
   const bootUser = initialUser || clientSnapshot?.user || null;
@@ -35,6 +51,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const mountedRef = useRef(true);
+
+  // Detect reseller site context from pathname
+  const { isResellerSite, basePath } = useMemo(
+    () => detectResellerSite(pathname),
+    [pathname]
+  );
 
   const refreshUser = useCallback(async (force = false) => {
     if (clientRequest && !force) {
@@ -171,35 +193,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isCheckingAuth = authState === "checking";
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-[var(--color-bg)]">
-      {loading && (
-        <div className="pointer-events-none fixed inset-x-0 top-0 z-[100] h-0.5 overflow-hidden bg-[var(--color-border)]" aria-label="جاري تحديث الحساب">
-          <div className="h-full w-1/3 animate-pulse bg-[var(--color-primary)]" />
-        </div>
-      )}
-
-      {!is2faRequired && (
-        <>
-          <Header onMenuClick={() => setSidebarOpen(true)} user={user} unreadNotifications={unread} />
-          <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} user={user} />
-        </>
-      )}
-
-      <main key={pathname} className={`flex-1 ${!is2faRequired ? "pb-28 pt-4 px-4" : ""} animate-fadeIn`}>
-        {isGuest ? (
-          <AuthRequiredGate />
-        ) : isCheckingAuth ? (
-          <div className="flex min-h-[70vh] items-center justify-center" aria-label="جاري التحقق من الجلسة">
-            <div className="h-9 w-9 animate-spin rounded-full border-4 border-[var(--color-border)] border-t-[var(--color-primary)]" />
+    <SiteContextProvider basePath={basePath} isResellerSite={isResellerSite} slug={basePath ? basePath.replace("/sites/", "") : undefined}>
+      <div className="relative flex min-h-screen flex-col bg-[var(--color-bg)]">
+        {loading && (
+          <div className="pointer-events-none fixed inset-x-0 top-0 z-[100] h-0.5 overflow-hidden bg-[var(--color-border)]" aria-label="جاري تحديث الحساب">
+            <div className="h-full w-1/3 animate-pulse bg-[var(--color-primary)]" />
           </div>
-        ) : is2faRequired ? (
-          <div className="flex h-[80vh] items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-border)] border-t-[var(--color-primary)]" />
-          </div>
-        ) : children}
-      </main>
+        )}
 
-      {!is2faRequired && !isGuest && <BottomNav />}
-    </div>
+        {!is2faRequired && (
+          <>
+            <Header onMenuClick={() => setSidebarOpen(true)} user={user} unreadNotifications={unread} basePath={basePath} />
+            <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} user={user} basePath={basePath} />
+          </>
+        )}
+
+        <main key={pathname} className={`flex-1 ${!is2faRequired ? "pb-28 pt-4 px-4" : ""} animate-fadeIn`}>
+          {isGuest ? (
+            <AuthRequiredGate />
+          ) : isCheckingAuth ? (
+            <div className="flex min-h-[70vh] items-center justify-center" aria-label="جاري التحقق من الجلسة">
+              <div className="h-9 w-9 animate-spin rounded-full border-4 border-[var(--color-border)] border-t-[var(--color-primary)]" />
+            </div>
+          ) : is2faRequired ? (
+            <div className="flex h-[80vh] items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-border)] border-t-[var(--color-primary)]" />
+            </div>
+          ) : children}
+        </main>
+
+        {!is2faRequired && !isGuest && <BottomNav basePath={basePath} />}
+      </div>
+    </SiteContextProvider>
   );
 }
