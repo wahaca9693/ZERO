@@ -184,6 +184,7 @@ const schemaStatements = [
   `CREATE TABLE IF NOT EXISTS reseller_sites (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     owner_user_id INTEGER NOT NULL,
+    parent_site_id INTEGER DEFAULT NULL,
     creation_key TEXT NOT NULL UNIQUE,
     slug TEXT NOT NULL UNIQUE,
     display_name TEXT NOT NULL,
@@ -684,6 +685,12 @@ const schemaMigrations: SchemaMigration[] = [
       ["aiSupportTitle", "TEXT DEFAULT 'دعم الذكاء الاصطناعي'"],
       ["aiSupportDescription", "TEXT DEFAULT 'مساعدة فورية وإجراءات ذكية على طلباتك.'"],
       ["aiSupportUrl", "TEXT DEFAULT ''"],
+    ],
+  },
+  {
+    table: "reseller_sites",
+    columns: [
+      ["parent_site_id", "INTEGER DEFAULT NULL"],
     ],
   },
   {

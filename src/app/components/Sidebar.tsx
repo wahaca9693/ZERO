@@ -272,23 +272,33 @@ export default function Sidebar({ open, onClose, user, basePath = "" }: SidebarP
                 {[
                   { label: t("sidebar.adminPanel"), description: getDescription("adminPanel", "نظرة عامة وتنبيهات التشغيل"), href: "/admin", icon: Shield },
                   { label: "مركز الطلبات", description: getDescription("adminOrders", "مراجعة الطلبات وحالاتها"), href: "/admin/orders", icon: ClipboardList },
-                  { label: "جميع المنصات الفرعية", description: "عرض كل الروابط والمالكين والإحصائيات", href: "/admin/sites", icon: Globe2 },
-                  { label: "المستخدمون", description: getDescription("adminUsers", "إدارة الحسابات والأرصدة"), href: "/admin/users", icon: User },
-                  { label: "المزودون والخدمات", description: getDescription("adminProviders", "ربط المزودين وإدارة الكتالوج"), href: "/admin/providers", icon: Boxes },
-                  { label: "إدارة مفاتيح API", description: getDescription("adminKeys", "تعطيل أو حذف مفاتيح المستخدمين"), href: "/admin/api-keys", icon: KeyRound },
-                  { label: "إيداعات الكريبتو", description: getDescription("crypto", "مراجعة الإيداعات وحالتها"), href: "/admin/crypto", icon: Wallet },
-                  { label: "إعدادات OKX", description: "ربط القراءة والتحقق من الإيداعات", href: "/admin/settings#okx-settings", icon: Coins },
-                  { label: "شحن Asiacell", description: getDescription("asiacell", "مراجعة طلبات الشحن المحلية"), href: "/admin/asiacell", icon: Wallet },
-                  { label: "المجاني والهدايا", description: getDescription("freeAdmin", "تخصيص الخدمات المجانية"), href: "/admin/free-services", icon: Gift },
-                  { label: "أكواد الهدايا", description: getDescription("giftCodes", "إنشاء وإدارة أكواد الرصيد"), href: "/admin/gift-codes", icon: Gift },
-                  { label: "إشعارات المستخدمين", description: getDescription("notifications", "إرسال تنبيهات موجهة"), href: "/admin/notifications", icon: Bell },
-                  { label: "تذاكر الدعم", description: getDescription("tickets", "الرد على طلبات المستخدمين"), href: "/admin/tickets", icon: FileText },
-                  { label: "سجل التدقيق", description: getDescription("audit", "مراجعة الأحداث الإدارية"), href: "/admin/audit-log", icon: History },
-                  { label: "هوية المنصة", description: getDescription("theme", "تغيير الاسم والشعار والألوان"), href: "/admin/theme", icon: SlidersHorizontal },
-                  { label: "منصات الكتالوج", description: "إنشاء أزرار باسم وشعار وخدمات تختارها أنت", href: "/admin/catalog-platforms", icon: Boxes },
-                  { label: "الأزرار المخصصة", description: getDescription("navigation", "إضافة أو تعديل أو حذف روابط آمنة"), href: "/admin/navigation", icon: Sparkles },
-                  { label: "إعدادات المواقع الفرعية", description: "السعر والشروط والميزات والأسئلة الشائعة", href: "/admin/reseller-settings", icon: Globe2 },
-                  { label: "إعدادات الإدارة", description: getDescription("adminSettings", "ضبط إعدادات التشغيل العامة"), href: "/admin/settings", icon: Settings },
+                  ...(basePath
+                    ? [
+                        // Branch admin: only sub-site local pages exist
+                        { label: "إدارة المستخدمين", description: "عرض وإضافة وخصم الأرصدة، حظر الحسابات", href: "/admin/users", icon: User },
+                        { label: "الإعدادات والبوابات", description: "إدارة طرق الدفع والهوية", href: "/admin/settings", icon: Settings },
+                        { label: "الفروع الفرعية", description: "إنشاء مواقع داخل موقعك", href: "/admin/sites", icon: Globe2 },
+                      ]
+                    : [
+                        // Main platform admin: full admin panel
+                        { label: "جميع المنصات الفرعية", description: "عرض كل الروابط والمالكين والإحصائيات", href: "/admin/sites", icon: Globe2 },
+                        { label: "المستخدمون", description: getDescription("adminUsers", "إدارة الحسابات والأرصدة"), href: "/admin/users", icon: User },
+                        { label: "المزودون والخدمات", description: getDescription("adminProviders", "ربط المزودين وإدارة الكتالوج"), href: "/admin/providers", icon: Boxes },
+                        { label: "إدارة مفاتيح API", description: getDescription("adminKeys", "تعطيل أو حذف مفاتيح المستخدمين"), href: "/admin/api-keys", icon: KeyRound },
+                        { label: "إيداعات الكريبتو", description: getDescription("crypto", "مراجعة الإيداعات وحالتها"), href: "/admin/crypto", icon: Wallet },
+                        { label: "إعدادات OKX", description: "ربط القراءة والتحقق من الإيداعات", href: "/admin/settings#okx-settings", icon: Coins },
+                        { label: "شحن Asiacell", description: getDescription("asiacell", "مراجعة طلبات الشحن المحلية"), href: "/admin/asiacell", icon: Wallet },
+                        { label: "المجاني والهدايا", description: getDescription("freeAdmin", "تخصيص الخدمات المجانية"), href: "/admin/free-services", icon: Gift },
+                        { label: "أكواد الهدايا", description: getDescription("giftCodes", "إنشاء وإدارة أكواد الرصيد"), href: "/admin/gift-codes", icon: Gift },
+                        { label: "إشعارات المستخدمين", description: getDescription("notifications", "إرسال تنبيهات موجهة"), href: "/admin/notifications", icon: Bell },
+                        { label: "تذاكر الدعم", description: getDescription("tickets", "الرد على طلبات المستخدمين"), href: "/admin/tickets", icon: FileText },
+                        { label: "سجل التدقيق", description: getDescription("audit", "مراجعة الأحداث الإدارية"), href: "/admin/audit-log", icon: History },
+                        { label: "هوية المنصة", description: getDescription("theme", "تغيير الاسم والشعار والألوان"), href: "/admin/theme", icon: SlidersHorizontal },
+                        { label: "منصات الكتالوج", description: "إنشاء أزرار باسم وشعار وخدمات تختارها أنت", href: "/admin/catalog-platforms", icon: Boxes },
+                        { label: "الأزرار المخصصة", description: getDescription("navigation", "إضافة أو تعديل أو حذف روابط آمنة"), href: "/admin/navigation", icon: Sparkles },
+                        { label: "إعدادات المواقع الفرعية", description: "السعر والشروط والميزات والأسئلة الشائعة", href: "/admin/reseller-settings", icon: Globe2 },
+                        { label: "إعدادات الإدارة", description: getDescription("adminSettings", "ضبط إعدادات التشغيل العامة"), href: "/admin/settings", icon: Settings },
+                      ]),
                 ].map((item) => {
                   const itemPath = sitePath(item.href.split("#")[0]);
                   const active = pathname === itemPath || (itemPath !== sitePath("/admin") && pathname.startsWith(`${itemPath}/`));

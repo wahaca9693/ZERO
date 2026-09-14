@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Users, ShoppingCart, ArrowDownUp, TrendingUp, LayoutDashboard, ShieldCheck, Loader2 } from "lucide-react";
+import { Users, ShoppingCart, ArrowDownUp, TrendingUp, LayoutDashboard, ShieldCheck, Loader2, CreditCard, Globe2 } from "lucide-react";
 
 type Props = { slug: string; siteName: string };
 
@@ -89,14 +89,32 @@ export default function ResellerAdminPage({ slug, siteName }: Props) {
           </div>
         </Link>
         <Link href={`${base}/admin/orders`} className="flex items-center gap-4 rounded-2xl border border-white/5 bg-white/[0.03] p-5 transition hover:border-[var(--color-primary)]/40 hover:bg-white/[0.06]">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/15 text-orange-400">
-            <ShoppingCart size={22} />
-          </div>
-          <div>
-            <div className="font-black text-white">مركز الطلبات</div>
-            <div className="mt-0.5 text-xs text-zinc-500">مراجعة جميع طلبات منصتك وحالاتها</div>
-          </div>
-        </Link>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/15 text-orange-400">
+                    <ShoppingCart size={22} />
+                  </div>
+                  <div>
+                    <div className="font-black text-white">مركز الطلبات</div>
+                    <div className="mt-0.5 text-xs text-zinc-500">مراجعة جميع طلبات منصتك وحالتها</div>
+                  </div>
+                </Link>
+                <Link href={`${base}/admin/settings`} className="flex items-center gap-4 rounded-2xl border border-white/5 bg-white/[0.03] p-5 transition hover:border-[var(--color-primary)]/40 hover:bg-white/[0.06]">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400">
+                    <CreditCard size={22} />
+                  </div>
+                  <div>
+                    <div className="font-black text-white">الإعدادات والبوابات</div>
+                    <div className="mt-0.5 text-xs text-zinc-500">إدارة طرق الدفع والهوية</div>
+                  </div>
+                </Link>
+                <Link href={`${base}/admin/sites`} className="flex items-center gap-4 rounded-2xl border border-white/5 bg-white/[0.03] p-5 transition hover:border-[var(--color-primary)]/40 hover:bg-white/[0.06]">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/15 text-violet-400">
+                    <Globe2 size={22} />
+                  </div>
+                  <div>
+                    <div className="font-black text-white">الفروع الفرعية</div>
+                    <div className="mt-0.5 text-xs text-zinc-500">إنشاء مواقع داخل موقعك</div>
+                  </div>
+                </Link>
         <Link href={`${base}/dashboard`} className="flex items-center gap-4 rounded-2xl border border-white/5 bg-white/[0.03] p-5 transition hover:border-[var(--color-primary)]/40 hover:bg-white/[0.06]">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400">
             <LayoutDashboard size={22} />
