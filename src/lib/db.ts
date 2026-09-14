@@ -542,6 +542,92 @@ const schemaStatements = [
     FOREIGN KEY (site_id) REFERENCES reseller_sites(id) ON DELETE CASCADE,
     FOREIGN KEY (account_id) REFERENCES reseller_accounts(id) ON DELETE CASCADE
   )`,
+  `CREATE TABLE IF NOT EXISTS reseller_navigation (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    label TEXT NOT NULL,
+    href TEXT NOT NULL,
+    icon TEXT DEFAULT 'Globe',
+    sort_order INTEGER DEFAULT 0,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (site_id) REFERENCES reseller_sites(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS reseller_tickets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    account_id INTEGER NOT NULL,
+    subject TEXT NOT NULL,
+    message TEXT,
+    status TEXT DEFAULT 'open',
+    priority TEXT DEFAULT 'normal',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (site_id) REFERENCES reseller_sites(id) ON DELETE CASCADE,
+    FOREIGN KEY (account_id) REFERENCES reseller_accounts(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS reseller_ticket_replies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticket_id INTEGER NOT NULL,
+    account_id INTEGER,
+    message TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES reseller_tickets(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS reseller_api_keys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    account_id INTEGER NOT NULL,
+    name TEXT,
+    key_value TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_used_at DATETIME,
+    FOREIGN KEY (site_id) REFERENCES reseller_sites(id) ON DELETE CASCADE,
+    FOREIGN KEY (account_id) REFERENCES reseller_accounts(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS reseller_gift_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    code TEXT NOT NULL UNIQUE,
+    amount REAL NOT NULL,
+    status TEXT DEFAULT 'active',
+    created_by INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    redeemed_by INTEGER,
+    redeemed_at DATETIME,
+    FOREIGN KEY (site_id) REFERENCES reseller_sites(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS reseller_free_services (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    service_id TEXT,
+    service_name TEXT,
+    platform TEXT,
+    link TEXT,
+    quantity INTEGER DEFAULT 0,
+    description TEXT,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (site_id) REFERENCES reseller_sites(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS reseller_notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (site_id) REFERENCES reseller_sites(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS reseller_audit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    account_id INTEGER,
+    action TEXT NOT NULL,
+    details TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (site_id) REFERENCES reseller_sites(id) ON DELETE CASCADE
+  )`,
 ] as const;
 
 const indexStatements = [

@@ -26,6 +26,7 @@ import {
   Star,
   Sparkles,
   MessageSquare,
+  ServerCog,
 } from "lucide-react";
 import { useLanguage } from "./LanguageProvider";
 import { clearAuthBootstrap } from "./auth-client";
@@ -274,8 +275,20 @@ export default function Sidebar({ open, onClose, user, basePath = "" }: SidebarP
                   { label: "مركز الطلبات", description: getDescription("adminOrders", "مراجعة الطلبات وحالاتها"), href: "/admin/orders", icon: ClipboardList },
                   ...(basePath
                     ? [
-                        // Branch admin: only sub-site local pages exist
-                        { label: "إدارة المستخدمين", description: "عرض وإضافة وخصم الأرصدة، حظر الحسابات", href: "/admin/users", icon: User },
+                        // Branch admin: full panel mirroring main platform, all local
+                        { label: "جميع المنصات الفرعية", description: "عرض كل الروابط والمالكين والإحصائيات", href: "/admin/sites", icon: Globe2 },
+                        { label: "المستخدمون", description: "إدارة الحسابات والأرصدة", href: "/admin/users", icon: User },
+                        { label: "المزودون والخدمات", description: "ربط المزودين وإدارة الكتالوج", href: "/admin/providers", icon: Boxes },
+                        { label: "إدارة مفاتيح API", description: "تعطيل أو حذف مفاتيح المستخدمين", href: "/admin/api-keys", icon: KeyRound },
+                        { label: "إيداعات الكريبتو", description: "مراجعة الإيداعات وحالتها", href: "/admin/crypto-deposits", icon: Wallet },
+                        { label: "شحن Asiacell", description: "مراجعة طلبات الشحن المحلية", href: "/admin/asiacell", icon: Wallet },
+                        { label: "المجاني والهدايا", description: "تخصيص الخدمات المجانية", href: "/admin/free-services", icon: Gift },
+                        { label: "أكواد الهدايا", description: "إنشاء وإدارة أكواد الرصيد", href: "/admin/gift-codes", icon: Gift },
+                        { label: "إشعارات المستخدمين", description: "إرسال تنبيهات موجهة", href: "/admin/notifications", icon: Bell },
+                        { label: "تذاكر الدعم", description: "الرد على طلبات المستخدمين", href: "/admin/tickets", icon: FileText },
+                        { label: "سجل التدقيق", description: "مراجعة الأحداث الإدارية", href: "/admin/audit-log", icon: History },
+                        { label: "حالة النظام", description: "مراقبة الخادم والقاعدة", href: "/admin/system-health", icon: ServerCog },
+                        { label: "الأزرار المخصصة", description: "إضافة أو تعديل أو حذف روابط آمنة", href: "/admin/navigation", icon: Sparkles },
                         { label: "الإعدادات والبوابات", description: "إدارة طرق الدفع والهوية", href: "/admin/settings", icon: Settings },
                         { label: "الفروع الفرعية", description: "إنشاء مواقع داخل موقعك", href: "/admin/sites", icon: Globe2 },
                       ]
