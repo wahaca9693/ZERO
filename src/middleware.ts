@@ -18,7 +18,7 @@ export async function middleware(request: NextRequest) {
 
   // Only intercept reseller site protected pages (portal + dashboard areas).
     // Services are public for guests, mirroring the main platform (/services).
-    const match = pathname.match(/^\/sites\/([^/]+)\/(dashboard|orders|wallet|deposit|transactions|profile)(\/|$)/);
+    const match = pathname.match(/^\/sites\/([^/]+)\/(dashboard|orders|wallet|deposit|transactions|profile|admin)(\/|$)/);
   if (!match) return NextResponse.next();
 
   const slug = match[1];
