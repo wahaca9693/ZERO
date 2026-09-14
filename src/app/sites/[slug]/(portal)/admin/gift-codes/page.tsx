@@ -5,7 +5,7 @@ import ResellerAdminModule from "../_lib/AdminModule";
 
 type Props = { params: Promise<{ slug: string }> };
 
-export default async function gift-codesPage({ params }: Props) {
+export default async function giftcodesPage({ params }: Props) {
   const { slug } = await params;
   await initDb();
   const loaded = await loadPublicSite(slug);
