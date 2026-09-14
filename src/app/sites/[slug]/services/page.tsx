@@ -1,10 +1,15 @@
 import { notFound } from "next/navigation";
 import { initDb } from "@/lib/db";
 import { loadPublicSite, publicSiteData } from "@/lib/reseller-sites";
-import SiteServicesClient from "./SiteServicesClient";
+import OfficialServicesMirror from "./OfficialServicesMirror";
 
 type Props = { params: Promise<{ slug: string }> };
 
+/**
+ * Public services page for a reseller sub-site — a 100% mirror of the official
+ * /services page (same design, same Header/Sidebar/BottomNav), adapted for the
+ * branch via slug-based API paths.
+ */
 export default async function SiteServicesPage({ params }: Props) {
   const { slug } = await params;
   await initDb();
@@ -12,15 +17,5 @@ export default async function SiteServicesPage({ params }: Props) {
   if (!loaded.site) notFound();
   const origin = process.env.NEXT_PUBLIC_APP_URL || "https://zero-lake.vercel.app";
   const site = publicSiteData(loaded.site, origin, loaded.expired);
-  const theme = site.theme as { primaryColor?: string; secondaryColor?: string; siteName?: string; logoUrl?: string };
-  const siteName = theme.siteName || site.displayName;
-  return (
-    <SiteServicesClient
-      slug={slug}
-      siteName={siteName}
-      logoUrl={theme.logoUrl}
-      primary={theme.primaryColor || "#f97316"}
-      secondary={theme.secondaryColor || "#fbbf24"}
-    />
-  );
+  return <OfficialServicesMirror slug={slug} />;
 }

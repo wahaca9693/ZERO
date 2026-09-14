@@ -5,8 +5,8 @@ import { getPublicServiceId, loadServiceCatalog } from "@/lib/service-catalog";
 
 /**
  * GET /api/sites/{slug}/services
- * Public catalog for a reseller site — same service catalog as the main
- * platform, returned for the reseller front-end.
+ * Public catalog for a reseller site — identical response shape to the official
+ * /api/services so the official services component works on the branch too.
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
@@ -17,20 +17,24 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
 
     const catalog = await loadServiceCatalog();
     const services = catalog.map((service) => ({
-      id: getPublicServiceId(service),
-      name: service.nameAr || service.name,
-      nameEn: service.name,
-      description: service.descriptionAr || service.description,
+      service: getPublicServiceId(service),
+      name: service.name,
+      nameAr: service.nameAr || service.name,
+      description: service.description,
+      descriptionAr: service.descriptionAr || service.description,
       category: service.category,
+      categoryAr: service.category,
       rate: service.rate,
       min: service.min,
       max: service.max,
-      type: service.type,
-      source: service.source,
+      platform: service.platform,
+      serviceType: service.type,
+      is_new: service.is_new,
     }));
 
     const categories = Array.from(new Set(services.map((s) => s.category).filter(Boolean)));
 
+    // Match the official payload: { services, categories, count }
     return NextResponse.json({ services, categories, count: services.length });
   } catch (error) {
     console.error("[site-services]", error);
