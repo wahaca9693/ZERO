@@ -102,6 +102,19 @@ export async function POST(request: Request) {
     if (adminPassword.length < 8 || !/[A-Za-z]/.test(adminPassword) || !/[0-9]/.test(adminPassword)) return NextResponse.json({ error: "كلمة مرور Admin يجب أن تحتوي على 8 أحرف وحروف وأرقام" }, { status: 400 });
     if (!/^[A-Za-z0-9:_-]{16,128}$/.test(creationKey)) return NextResponse.json({ error: "مفتاح الإنشاء غير صالح" }, { status: 400 });
 
+    // ENFORCE: one site per user — reject if the user already owns a site
+    const existingSite = await db.execute({
+      sql: "SELECT id, slug FROM reseller_sites WHERE owner_user_id = ? LIMIT 1",
+      args: [session.userId!],
+    });
+    if (existingSite.rows.length > 0) {
+      const existing = existingSite.rows[0] as SiteRow;
+      return NextResponse.json({
+        error: "لديك منصة بالفعل. كل مستخدم يُسمح له بإنشاء منصة واحدة فقط.",
+        existingSlug: existing.slug,
+      }, { status: 403 });
+    }
+
     const settingsResult = await db.execute("SELECT * FROM reseller_settings WHERE id = 1 LIMIT 1");
     const settingsRow = settingsResult.rows[0] as SiteRow | undefined;
     const settings = publicSettings(settingsRow);
