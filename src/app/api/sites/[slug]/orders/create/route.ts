@@ -151,7 +151,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
     // Execute order via FIXED_API_ENDPOINT using branch's API key
     const providerApiUrl = "https://www.follower4.zone.id/api/v2";
-    const body = new URLSearchParams({
+    const formData = new URLSearchParams({
       key: (await db.execute({ sql: "SELECT api_key FROM branch_providers WHERE site_id = ? LIMIT 1", args: [siteId] })).rows[0]?.api_key as string || "",
       action: "add",
       service: String(providerService.remote_service_id),
