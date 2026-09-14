@@ -17,8 +17,8 @@ import {
   UserRound,
   WalletCards,
 } from "lucide-react";
-import { useLanguage, type Locale } from "../../../../components/LanguageProvider";
-import { useTheme } from "../../../../components/ThemeProvider";
+import { useLanguage, type Locale } from "../../../components/LanguageProvider";
+import { useTheme } from "../../../components/ThemeProvider";
 
 type Preferences = {
   email_notifications: boolean;

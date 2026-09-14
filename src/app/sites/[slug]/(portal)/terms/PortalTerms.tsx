@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTheme } from "../../../../components/ThemeProvider";
+import { useTheme } from "../../../components/ThemeProvider";
 import { Shield, AlertTriangle, CheckCircle, RefreshCw, XCircle } from "lucide-react";
 
 export default function TermsPage({ slug }: { slug: string }) {

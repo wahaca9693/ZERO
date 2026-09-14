@@ -2,18 +2,18 @@
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Modal } from "../../../../components/Modal";
+import { Modal } from "../../../components/Modal";
 import { Search, Layers, ChevronDown, ChevronUp, ShoppingCart, ShieldCheck, Sparkles, Zap, Infinity, RefreshCw, Wallet, Heart, Share2, Check, type LucideIcon } from "lucide-react";
-import { PlatformIcon } from "../../../../components/Icons";
+import { PlatformIcon } from "../../../components/Icons";
 import Link from "next/link";
-import { useLiveRefresh } from "../../../../components/useLiveRefresh";
-import { useLanguage, translatePlatform, translateServiceName, translateServiceType } from "../../../../components/LanguageProvider";
-import Header from "../../../../components/Header";
-import Sidebar from "../../../../components/Sidebar";
-import BottomNav from "../../../../components/BottomNav";
+import { useLiveRefresh } from "../../../components/useLiveRefresh";
+import { useLanguage, translatePlatform, translateServiceName, translateServiceType } from "../../../components/LanguageProvider";
+import Header from "../../../components/Header";
+import Sidebar from "../../../components/Sidebar";
+import BottomNav from "../../../components/BottomNav";
 import { defaultPlatformOptions, normalizePlatformId, platformEnglishDisplayName, platformOption, type PlatformOption } from "@/lib/platform-mapping";
-import { AUTH_CHANGED_EVENT, type ClientAuthUser } from "../../../../components/auth-client";
-import { useInitialAuthUser } from "../../../../components/Providers";
+import { AUTH_CHANGED_EVENT, type ClientAuthUser } from "../../../components/auth-client";
+import { useInitialAuthUser } from "../../../components/Providers";
 
 type ServiceRecord = {
   service?: string | number;
