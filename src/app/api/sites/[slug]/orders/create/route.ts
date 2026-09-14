@@ -27,7 +27,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   try {
     const { slug } = await params;
     await initDb();
-    const auth = await requireSiteAuth(request, slug);
+    const auth = await requireSiteAuth(slug);
     if (!auth.ok) return auth.response;
     const accountId = auth.session.userId!;
 

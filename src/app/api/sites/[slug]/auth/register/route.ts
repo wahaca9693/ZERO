@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { db, initDb } from "@/lib/db";
 import { loadPublicSite } from "@/lib/reseller-sites";
 import { sessionOptions, type SessionUser } from "@/lib/session";
@@ -32,15 +33,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     });
     const user = result.rows[0] as unknown as { id: number; role: string } | undefined;
 
-    const response = NextResponse.json({ success: true });
     if (user) {
-      const session = await getIronSession<SessionUser>(request, response, sessionOptions);
+      const cookieStore = await cookies();
+      const session = await getIronSession<SessionUser>(cookieStore, sessionOptions);
       session.userId = user.id;
       session.siteSlug = slug;
       session.role = user.role;
       await session.save();
     }
-    return response;
+
+    return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "تعذر إنشاء الحساب" }, { status: 500 });
   }

@@ -1,5 +1,5 @@
 import { getIronSession } from "iron-session";
-import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 export type SessionUser = {
   userId?: number;
@@ -20,13 +20,13 @@ export const sessionOptions = {
 };
 
 /**
- * Returns the authenticated reseller account from the iron-session cookie,
- * or null when the session is missing/invalid for the given slug.
+ * Reads the iron-session session from the request cookies.
+ * Use this inside API route handlers to check authentication.
  */
-export async function getSiteSession(request: Request, slug: string) {
-  const response = NextResponse.next();
+export async function getSiteSession(slug: string) {
   try {
-    const session = await getIronSession<SessionUser>(request, response, sessionOptions);
+    const cookieStore = await cookies();
+    const session = await getIronSession<SessionUser>(cookieStore, sessionOptions);
     if (!session.userId || session.siteSlug !== slug) return null;
     return session;
   } catch {
@@ -35,15 +35,18 @@ export async function getSiteSession(request: Request, slug: string) {
 }
 
 /**
- * Convenience wrapper for API routes: returns { ok: false, response } with a
- * 401 JSON when unauthenticated, or { ok: true, session, site } when valid.
+ * Convenience wrapper for API routes: returns { ok: false } with 401 JSON when
+ * unauthenticated, or { ok: true, session } when valid.
  */
-export async function requireSiteAuth(request: NextRequest | Request, slug: string) {
-  const session = await getSiteSession(request, slug);
+export async function requireSiteAuth(slug: string) {
+  const session = await getSiteSession(slug);
   if (!session) {
     return {
       ok: false as const,
-      response: NextResponse.json({ error: "يرجى تسجيل الدخول إلى هذا الموقع أولاً." }, { status: 401 }),
+      response: new Response(JSON.stringify({ error: "يرجى تسجيل الدخول إلى هذا الموقع أولاً." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }),
     };
   }
   return { ok: true as const, session };

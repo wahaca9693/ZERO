@@ -13,7 +13,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
   try {
     const { slug } = await params;
     await initDb();
-    const auth = await requireSiteAuth(request, slug);
+    const auth = await requireSiteAuth(slug);
     if (!auth.ok) return auth.response;
 
     const loaded = await loadPublicSite(slug);
