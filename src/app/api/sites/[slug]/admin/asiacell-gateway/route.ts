@@ -34,8 +34,10 @@ async function getSiteAdminRow(siteId: number) {
   return {
     ...row,
     id: Number(row.id),
+    phone: row.phone ? String(row.phone) : "",
     authenticated: Number(row.authenticated),
     exchange_rate: Number(row.exchange_rate),
+    store_phone: row.store_phone ? String(row.store_phone) : "",
   };
 }
 

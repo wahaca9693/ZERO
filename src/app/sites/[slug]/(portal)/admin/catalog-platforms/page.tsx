@@ -13,5 +13,5 @@ export default async function Page({ params }: Props) {
   const origin = process.env.NEXT_PUBLIC_APP_URL || "https://zero-lake.vercel.app";
   const site = publicSiteData(loaded.site, origin, loaded.expired);
   void (site.theme as { siteName?: string }).siteName;
-  return <ResellerAdminModule slug={slug} title="إدارة المحتوى" description="منصات الكتالوج وإعدادات المواقع الفرعية والهوية" endpoint="/admin/settings" icon="settings" />;
+  return <ResellerAdminModule slug={slug} title="إدارة المحتوى" description="منصات الكتالوج وإعدادات المواقع الفرعية والهوية" endpoint="/admin/settings" icon="navigation" />;
 }
