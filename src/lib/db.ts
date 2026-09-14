@@ -553,6 +553,20 @@ const schemaStatements = [
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (site_id) REFERENCES reseller_sites(id) ON DELETE CASCADE
   )`,
+  `CREATE TABLE IF NOT EXISTS reseller_asiacell_admin (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    phone TEXT,
+    device_id TEXT,
+    access_token TEXT,
+    pid TEXT,
+    authenticated INTEGER DEFAULT 0,
+    exchange_rate INTEGER DEFAULT 1666,
+    store_phone TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(site_id),
+    FOREIGN KEY (site_id) REFERENCES reseller_sites(id) ON DELETE CASCADE
+  )`,
   `CREATE TABLE IF NOT EXISTS reseller_tickets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     site_id INTEGER NOT NULL,

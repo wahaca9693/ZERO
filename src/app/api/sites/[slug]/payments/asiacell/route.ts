@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { initDb } from "@/lib/db";
+import { db, initDb } from "@/lib/db";
 import { loadPublicSite } from "@/lib/reseller-sites";
 import { requireSiteAuth } from "@/lib/session";
 import {
@@ -36,12 +36,21 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
     const auth = await requireSiteAuth(slug);
     if (!auth.ok) return auth.response;
 
-    const admin = await getAdminRow();
+    const loaded = await loadPublicSite(slug);
+    const siteId = loaded.site ? Number(loaded.site.id) : 0;
+    // Per-site Asiacell gateway settings (store phone + rate for THIS branch)
+    const siteAdmin = siteId
+      ? await db.execute({
+          sql: "SELECT authenticated, store_phone, exchange_rate FROM reseller_asiacell_admin WHERE site_id = ? LIMIT 1",
+          args: [siteId],
+        })
+      : null;
+    const row = siteAdmin?.rows[0] as unknown as Record<string, unknown> | undefined;
     return NextResponse.json({
-      connected: !!admin?.store_phone || !!admin?.phone,
-      admin_connected: !!admin?.authenticated,
-      store_phone: admin?.store_phone || admin?.phone || "",
-      exchange_rate: admin?.exchange_rate || 1666,
+      connected: row ? Boolean(Number(row.authenticated)) : false,
+      admin_connected: row ? Boolean(Number(row.authenticated)) : false,
+      store_phone: row?.store_phone ? String(row.store_phone) : "",
+      exchange_rate: row?.exchange_rate ? Number(row.exchange_rate) : 1666,
     });
   } catch (error: unknown) {
     return NextResponse.json({ error: errorMessage(error) }, { status: 401 });
