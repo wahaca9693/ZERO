@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import DashboardLayout from "../../../components/DashboardLayout";
+import DashboardLayout from "../../../../components/DashboardLayout";
 import { Smartphone, LogOut, Save, RefreshCw, AlertCircle, Loader2 } from "lucide-react";
 
 type AsiacellStatus = {
