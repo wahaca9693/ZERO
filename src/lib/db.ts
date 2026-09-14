@@ -567,7 +567,18 @@ const schemaStatements = [
     UNIQUE(site_id),
     FOREIGN KEY (site_id) REFERENCES reseller_sites(id) ON DELETE CASCADE
   )`,
-  `CREATE TABLE IF NOT EXISTS reseller_tickets (
+    `CREATE TABLE IF NOT EXISTS branch_providers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL UNIQUE,
+    api_key TEXT NOT NULL,
+    owner_user_id INTEGER NOT NULL,
+    is_active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (site_id) REFERENCES reseller_sites(id) ON DELETE CASCADE,
+    FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE CASCADE
+  )`,
+`CREATE TABLE IF NOT EXISTS reseller_tickets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     site_id INTEGER NOT NULL,
     account_id INTEGER NOT NULL,
@@ -672,6 +683,7 @@ const indexStatements = [
   `CREATE INDEX IF NOT EXISTS idx_reseller_orders_site ON reseller_orders(site_id, account_id, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_reseller_orders_status ON reseller_orders(site_id, status, updated_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_reseller_transactions_site ON reseller_transactions(site_id, account_id, created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_branch_providers_site ON branch_providers(site_id)`,
   `CREATE INDEX IF NOT EXISTS idx_reseller_requests_user_created ON reseller_requests(user_id, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_free_offers_active ON free_service_offers(is_active, updated_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_free_usages_user_offer ON free_service_usages(user_id, offer_id, created_at DESC)`,

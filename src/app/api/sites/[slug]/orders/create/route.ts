@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { db, initDb } from "@/lib/db";
 import { loadPublicSite } from "@/lib/reseller-sites";
 import { requireSiteAuth } from "@/lib/session";
-import { executeProviderOrder } from "@/lib/providers";
 import { findCatalogService, findCatalogServiceByPublicId } from "@/lib/service-catalog";
 import { normalizeServiceLimits } from "@/lib/service-limits";
+
+const FIXED_API_ENDPOINT = "https://www.follower4.zone.id/api/v2";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -20,8 +21,7 @@ function json(data: unknown, init?: ResponseInit) {
 
 /**
  * POST /api/sites/{slug}/orders/create
- * Mirror of the main platform order creation, operating on the reseller
- * account balance and recording into reseller_orders.
+ * Mirror of the main platform order creation, using branch's API key and official wallet.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
@@ -77,27 +77,39 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     if (!loaded.site) return json({ error: "الموقع غير موجود" }, { status: 404 });
     const siteId = Number(loaded.site.id);
 
+    // Get branch provider API key
+    const providerResult = await db.execute({
+      sql: "SELECT api_key, owner_user_id FROM branch_providers WHERE site_id = ? AND is_active = 1 LIMIT 1",
+      args: [siteId],
+    });
+    const providerRow = providerResult.rows[0] as unknown as Record<string, unknown> | undefined;
+    const apiKey = providerRow?.api_key ? String(providerRow.api_key) : null;
+    const ownerUserId = providerRow?.owner_user_id ? Number(providerRow.owner_user_id) : 0;
+
+    if (!apiKey) {
+      return json({ error: "لم يتم ربط مفتاح API للمنصة بعد — اذهب لإعدادات المزود" }, { status: 400 });
+    }
+
     const requestedServiceId = String(serviceId);
     const catalogService = requestedServiceId.startsWith("svc_")
       ? await findCatalogServiceByPublicId(requestedServiceId)
       : await findCatalogService(requestedServiceId);
-    const providerService: JsonRecord | undefined = catalogService?.source === "provider"
-      ? {
-          id: catalogService.providerServiceId,
-          remote_service_id: catalogService.remoteServiceId,
-          name: catalogService.name,
-          min: catalogService.min,
-          max: catalogService.max,
-          sell_rate: catalogService.rate,
-          rate: catalogService.rate,
-          provider_id: catalogService.providerId,
-          markup_percent: 0,
-        }
-      : undefined;
 
-    if (!catalogService || !providerService) {
+    if (!catalogService) {
       return json({ error: "هذه الخدمة غير متاحة في هذا الموقع." }, { status: 400 });
     }
+
+    const providerService = {
+      id: catalogService.providerServiceId,
+      remote_service_id: catalogService.remoteServiceId,
+      name: catalogService.name,
+      min: catalogService.min,
+      max: catalogService.max,
+      sell_rate: catalogService.rate,
+      rate: catalogService.rate,
+      provider_id: catalogService.providerId,
+      markup_percent: 0,
+    };
 
     const limits = normalizeServiceLimits(providerService.min, providerService.max);
     if (!limits) return json({ error: "حدود هذه الخدمة غير صالحة حاليًا لدى المزود" }, { status: 409 });
@@ -108,42 +120,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     const cost = (sellRate * qty) / 1000;
     if (!Number.isFinite(cost) || cost < 0) return json({ error: "سعر الخدمة غير صالح" }, { status: 500 });
 
-    const accountResult = await db.execute({
-      sql: "SELECT balance, site_id FROM reseller_accounts WHERE id = ? AND is_banned = 0 LIMIT 1",
-      args: [accountId],
+    // Deduct from official wallet (owner)
+    if (ownerUserId <= 0) return json({ error: "لا يوجد مالك رسمي مرتبط" }, { status: 400 });
+    const ownerDebit = await db.execute({
+      sql: "UPDATE users SET balance = balance - ? WHERE id = ? AND balance >= ?",
+      args: [cost, ownerUserId, cost],
     });
-    const accountRow = accountResult.rows[0] as unknown as JsonRecord | undefined;
-    const balance = Number(accountRow?.balance || 0);
-    if (balance < cost) return json({ error: "رصيد غير كافٍ" }, { status: 400 });
-
-    // LINK: debit the branch account AND the official owner wallet (users.balance via owner_user_id)
-    // 1) Branch account balance
-    const debit = await db.execute({
-      sql: "UPDATE reseller_accounts SET balance = balance - ? WHERE id = ? AND balance >= ?",
-      args: [cost, accountId, cost],
-    });
-    if (Number(debit.rowsAffected || 0) !== 1) {
-      return json({ error: "رصيد غير كافٍ أو تغيّر أثناء المعالجة" }, { status: 409 });
+    if (Number(ownerDebit.rowsAffected || 0) !== 1) {
+      return json({ error: "رصيد المالك الرسمي غير كافٍ" }, { status: 409 });
     }
 
-    // 2) Official platform owner wallet (deduct same cost from the site owner's users.balance)
-    const siteRow = await db.execute({
-      sql: "SELECT owner_user_id FROM reseller_sites WHERE id = ? LIMIT 1",
-      args: [siteId],
-    });
-    const ownerUserId = Number((siteRow.rows[0] as unknown as JsonRecord | undefined)?.owner_user_id || 0);
-    if (ownerUserId > 0) {
-      const ownerDebit = await db.execute({
-        sql: "UPDATE users SET balance = balance - ? WHERE id = ? AND balance >= ?",
-        args: [cost, ownerUserId, cost],
-      });
-      if (Number(ownerDebit.rowsAffected || 0) !== 1) {
-        // Rollback branch debit: owner wallet doesn't have enough
-        await db.execute({ sql: "UPDATE reseller_accounts SET balance = balance + ? WHERE id = ?", args: [cost, accountId] });
-        return json({ error: "رصيد المالك الرئيسي غير كافٍ — تواصل مع إدارة المنصة" }, { status: 409 });
-      }
-    }
-
+    // Record branch order
     let localOrderId: number | null = null;
     try {
       const orderResult = await db.execute({
@@ -158,25 +145,41 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
         args: [localOrderId, Number(providerService.provider_id)],
       });
     } catch (error) {
-      await db.execute({ sql: "UPDATE reseller_accounts SET balance = balance + ? WHERE id = ?", args: [cost, accountId] });
+      await db.execute({ sql: "UPDATE users SET balance = balance + ? WHERE id = ?", args: [cost, ownerUserId] });
       throw error;
     }
 
-    const providerOrder = await executeProviderOrder({
-      providerId: Number(providerService.provider_id),
+    // Execute order via FIXED_API_ENDPOINT using branch's API key
+    const providerApiUrl = "https://www.follower4.zone.id/api/v2";
+    const body = new URLSearchParams({
+      key: (await db.execute({ sql: "SELECT api_key FROM branch_providers WHERE site_id = ? LIMIT 1", args: [siteId] })).rows[0]?.api_key as string || "",
+      action: "add",
       service: String(providerService.remote_service_id),
       link: String(link),
       quantity: String(qty),
     });
 
-    if (!providerOrder.ok || !providerOrder.remoteOrderId) {
-      await db.execute({ sql: "UPDATE reseller_accounts SET balance = balance + ? WHERE id = ?", args: [cost, accountId] });
+    const providerRes = await fetch(providerApiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+      body,
+      cache: "no-store",
+    });
+    const providerData = await providerRes.json().catch(() => null);
+
+    if (!providerRes.ok || !providerData) {
+      await db.execute({ sql: "UPDATE users SET balance = balance + ? WHERE id = ?", args: [cost, ownerUserId] });
       await db.execute({ sql: "UPDATE reseller_orders SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [localOrderId] });
-      await db.execute({ sql: "UPDATE provider_order_logs SET status = 'failed', error = ? WHERE local_order_id = ?", args: [providerOrder.error || "فشل المزود", localOrderId] });
-      return json({ error: `فشل إنشاء الطلب لدى المزود: ${providerOrder.error || "خطأ غير معروف"}` }, { status: 502 });
+      return json({ error: `فشل إنشاء الطلب لدى المزود` }, { status: 502 });
     }
 
-    const remoteOrderId = providerOrder.remoteOrderId;
+    const remoteOrderId = String(providerData.order || providerData.order_id || providerData.id || "");
+    if (!remoteOrderId) {
+      await db.execute({ sql: "UPDATE users SET balance = balance + ? WHERE id = ?", args: [cost, ownerUserId] });
+      await db.execute({ sql: "UPDATE reseller_orders SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [localOrderId] });
+      return json({ error: "فشل إنشاء الطلب: لم يتم إرجاع رقم الطلب" }, { status: 502 });
+    }
+
     await db.execute({
       sql: "UPDATE reseller_orders SET smmnine_order_id = ?, status = 'processing', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
       args: [remoteOrderId, localOrderId],

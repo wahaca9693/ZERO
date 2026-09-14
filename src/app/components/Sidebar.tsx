@@ -278,6 +278,7 @@ export default function Sidebar({ open, onClose, user, basePath = "" }: SidebarP
                         // Branch admin: full panel mirroring main platform, all local
                         { label: "جميع المنصات الفرعية", description: "عرض كل الروابط والمالكين والإحصائيات", href: "/admin/sites", icon: Globe2 },
                         { label: "المستخدمون", description: "إدارة الحسابات والأرصدة", href: "/admin/users", icon: User },
+                        { label: "مفتاح API", description: "ربط مفتاح API للخدمات", href: "/admin/provider", icon: KeyRound },
                         { label: "المزودون والخدمات", description: "ربط المزودين وإدارة الكتالوج", href: "/admin/providers", icon: Boxes },
                         { label: "إدارة مفاتيح API", description: "تعطيل أو حذف مفاتيح المستخدمين", href: "/admin/api-keys", icon: KeyRound },
                         { label: "إيداعات الكريبتو", description: "مراجعة الإيداعات وحالتها", href: "/admin/crypto-deposits", icon: Wallet },
