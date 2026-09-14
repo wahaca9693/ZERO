@@ -27,9 +27,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
       rate: service.rate,
       min: service.min,
       max: service.max,
-      platform: service.platform,
+      platform: service.category,
       serviceType: service.type,
-      is_new: service.is_new,
+      is_new: false,
     }));
 
     const categories = Array.from(new Set(services.map((s) => s.category).filter(Boolean)));
