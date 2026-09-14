@@ -38,3 +38,4 @@ export async function requireSiteAuth(slug: string) {
 }
 
 export { sessionOptions };
+export type { SessionUser } from "./session-config";
