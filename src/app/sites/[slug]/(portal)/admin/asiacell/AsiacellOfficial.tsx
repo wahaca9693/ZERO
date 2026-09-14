@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import DashboardLayout from "../../../../components/DashboardLayout";
 import { Smartphone, LogOut, Save, RefreshCw, AlertCircle, Loader2 } from "lucide-react";
 
 type AsiacellStatus = {
@@ -202,8 +201,7 @@ export default function AsiacellAdminPage({ slug }: { slug: string }) {
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-4">
+          <div className="space-y-4">
         <div className="flex items-center gap-3">
           <Smartphone className="text-[var(--color-primary)]" size={28} />
           <h1 className="text-2xl font-black text-white">إعدادات بوابة آسياسيل</h1>
@@ -338,6 +336,6 @@ export default function AsiacellAdminPage({ slug }: { slug: string }) {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </div>
   );
 }
