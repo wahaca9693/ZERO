@@ -16,6 +16,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.rewrite(rewritten);
   }
 
+  // Protect main-platform page /my-sites (requires login)
+  if (pathname === "/my-sites" || pathname.startsWith("/my-sites/")) {
+    try {
+      const session = await getIronSession<SessionUser>(request, response, sessionOptions);
+      if (!session.userId && !session.isLoggedIn) {
+        const loginUrl = new URL("/login", request.url);
+        loginUrl.searchParams.set("next", pathname);
+        return NextResponse.redirect(loginUrl);
+      }
+      return NextResponse.next();
+    } catch {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("next", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
   // Only intercept reseller site protected pages (portal + dashboard areas).
     // Services are public for guests, mirroring the main platform (/services).
     const match = pathname.match(/^\/sites\/([^/]+)\/(dashboard|orders|wallet|deposit|transactions|profile|admin)(\/|$)/);
@@ -43,5 +60,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/sites/:slug/:path*"],
+  matcher: ["/sites/:slug/:path*", "/my-sites", "/my-sites/:path*"],
 };

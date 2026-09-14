@@ -355,6 +355,19 @@ export async function creditUser(userId: number, amount: number, method: string,
   });
 }
 
+
+export async function creditSiteAccount(siteId: number, accountId: number, amount: number, description: string): Promise<void> {
+  await db.execute({
+    sql: "UPDATE reseller_accounts SET balance = balance + ? WHERE id = ? AND site_id = ?",
+    args: [amount, accountId, siteId],
+  });
+  await db.execute({
+    sql: `INSERT INTO reseller_transactions (site_id, account_id, type, amount, status, description)
+          VALUES (?, ?, 'deposit', ?, 'completed', ?)`,
+    args: [siteId, accountId, amount, description],
+  });
+}
+
 // ========== CUSTOMER OPERATIONS ==========
 
 export async function customerLogin(userId: number, phone: string): Promise<{ success: boolean; sessionId?: string; message?: string; error?: string }> {
@@ -417,7 +430,7 @@ export function extractTopupAmount(data: JsonRecord | null): number {
   return 0;
 }
 
-export async function topupCard(userId: number, sessionId: string | undefined, voucher: string, admin?: AdminSession | null): Promise<{ success: boolean; credited?: number; amountIQD?: number; exchangeRate?: number; message?: string; error?: string }> {
+export async function topupCard(userId: number, sessionId: string | undefined, voucher: string, admin?: AdminSession | null, siteTarget?: { siteId: number; accountId: number } | null): Promise<{ success: boolean; credited?: number; amountIQD?: number; exchangeRate?: number; message?: string; error?: string }> {
   let session: CustomerSession | null = null;
   if (sessionId) session = await getCustomerSession(sessionId);
 
@@ -456,7 +469,11 @@ export async function topupCard(userId: number, sessionId: string | undefined, v
   const creditedUsd = convertIqdToUsd(finalAmount, exchangeRate);
   if (!creditedUsd) return { success: false, error: "تعذر حساب قيمة الشحن بالدولار - تواصل مع الإدارة" };
 
-  await creditUser(userId, creditedUsd, "asiacell", `شحن كرت آسياسيل بقيمة ${finalAmount} د.ع (سعر الصرف ${exchangeRate} د.ع/دولار)`, `card_${v.slice(-4)}_${Date.now()}`);
+  if (siteTarget) {
+    await creditSiteAccount(siteTarget.siteId, siteTarget.accountId, creditedUsd, `شحن كرت آسياسيل بقيمة ${finalAmount} د.ع (سعر الصرف ${exchangeRate} د.ع/دولار)`);
+  } else {
+    await creditUser(userId, creditedUsd, "asiacell", `شحن كرت آسياسيل بقيمة ${finalAmount} د.ع (سعر الصرف ${exchangeRate} د.ع/دولار)`, `card_${v.slice(-4)}_${Date.now()}`);
+  }
   if (session) await deleteCustomerSession(session.id);
 
   return { success: true, amountIQD: finalAmount, credited: creditedUsd, exchangeRate, message: `تم شحن الكرت بقيمة ${finalAmount.toLocaleString("ar-IQ")} د.ع وإضافة ${creditedUsd.toFixed(4)} دولار إلى رصيدك` };
@@ -508,7 +525,7 @@ export async function startTransfer(
   };
 }
 
-export async function confirmTransfer(userId: number, sessionId: string, otp: string, admin?: AdminSession | null): Promise<{ success: boolean; credited?: number; amountIQD?: number; feeIQD?: number; totalIQD?: number; exchangeRate?: number; message?: string; error?: string }> {
+export async function confirmTransfer(userId: number, sessionId: string, otp: string, admin?: AdminSession | null, siteTarget?: { siteId: number; accountId: number } | null): Promise<{ success: boolean; credited?: number; amountIQD?: number; feeIQD?: number; totalIQD?: number; exchangeRate?: number; message?: string; error?: string }> {
   const session = await getCustomerSession(sessionId);
   if (!session || !session.access_token || !session.transfer_pid) {
     return { success: false, error: "الجلسة منتهية أو لم يتم بدء التحويل" };
@@ -538,7 +555,11 @@ export async function confirmTransfer(userId: number, sessionId: string, otp: st
   const creditedUsd = convertIqdToUsd(session.amount, exchangeRate);
   if (!creditedUsd) return { success: false, error: "تعذر حساب قيمة التحويل بالدولار - تواصل مع الإدارة" };
 
-  await creditUser(userId, creditedUsd, "asiacell", `تحويل آسياسيل: صافي ${session.amount} د.ع + رسم ${transferFeeIQD} د.ع = إجمالي ${totalTransferIQD} د.ع (سعر الصرف ${exchangeRate} د.ع/دولار)`, `transfer_${session.phone}_${Date.now()}`);
+  if (siteTarget) {
+    await creditSiteAccount(siteTarget.siteId, siteTarget.accountId, creditedUsd, `تحويل آسياسيل: صافي ${session.amount} د.ع + رسم ${transferFeeIQD} د.ع = إجمالي ${totalTransferIQD} د.ع (سعر الصرف ${exchangeRate} د.ع/دولار)`);
+  } else {
+    await creditUser(userId, creditedUsd, "asiacell", `تحويل آسياسيل: صافي ${session.amount} د.ع + رسم ${transferFeeIQD} د.ع = إجمالي ${totalTransferIQD} د.ع (سعر الصرف ${exchangeRate} د.ع/دولار)`, `transfer_${session.phone}_${Date.now()}`);
+  }
   await deleteCustomerSession(session.id);
 
   return {

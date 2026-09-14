@@ -2,14 +2,28 @@ import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { loadPublicSite, publicSiteData } from "@/lib/reseller-sites";
 import { requireSiteAuth } from "@/lib/session";
+import {
+  customerLogin,
+  customerVerify,
+  topupCard,
+  startTransfer,
+  confirmTransfer,
+  resendTransferOtp,
+  getAdminRow,
+} from "@/lib/asiacell-gateway";
+
+type Params = { params: Promise<{ slug: string }> };
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unexpected error";
+}
 
 type PaymentMethod = { name: string; instructions: string; enabled: boolean };
 
-/**
- * GET /api/sites/{slug}/deposit
- * Returns the payment methods configured for THIS reseller site so the
- * front-end can render a deposit screen unique to the branch.
- */
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params;
@@ -22,12 +36,57 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     const origin = process.env.NEXT_PUBLIC_APP_URL || "https://zero-lake.vercel.app";
     const site = publicSiteData(loaded.site, origin, loaded.expired);
 
-    const methods = (site.paymentMethods as PaymentMethod[] | undefined) || [];
+    const methods = (site.paymentMethods as { name: string; instructions: string; enabled: boolean }[] | undefined) || [];
     const enabled = methods.filter((method) => method.enabled !== false);
 
     return NextResponse.json({ paymentMethods: enabled });
   } catch (error) {
     console.error("[site-deposit]", error);
     return NextResponse.json({ error: "تعذر تحميل طرق الدفع" }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+  try {
+    const { slug } = await params;
+    await initDb();
+    const auth = await requireSiteAuth(slug);
+    if (!auth.ok) return auth.response;
+
+    const body = await request.json();
+    const action = String(body.action || "");
+
+    const admin = await getAdminRow();
+
+    if (action === "asiacell-login") {
+      const result = await customerLogin(auth.session.userId!, String(body.phone || ""));
+      return NextResponse.json(result);
+    }
+    if (action === "asiacell-verify-otp") {
+      const result = await customerVerify(String(body.sessionId || ""), String(body.otp || ""));
+      return NextResponse.json(result);
+    }
+    if (action === "asiacell-topup") {
+      const sessionId = String(body.sessionId || "").trim() || undefined;
+      const result = await topupCard(auth.session.userId!, sessionId, String(body.voucher || ""), admin);
+      return NextResponse.json(result);
+    }
+    if (action === "asiacell-transfer") {
+      const result = await startTransfer(auth.session.userId!, String(body.sessionId || ""), Number(body.amount || 0), admin);
+      return NextResponse.json(result);
+    }
+    if (action === "asiacell-confirm") {
+      const result = await confirmTransfer(auth.session.userId!, String(body.sessionId || ""), String(body.otp || ""), admin);
+      return NextResponse.json(result);
+    }
+    if (action === "asiacell-resend") {
+      const result = await resendTransferOtp(String(body.sessionId || ""));
+      return NextResponse.json(result);
+    }
+
+    return NextResponse.json({ error: "إجراء غير معروف" }, { status: 400 });
+  } catch (error) {
+    console.error("[site-deposit-post]", error);
+    return NextResponse.json({ error: "تعذر معالجة طلب الشحن" }, { status: 500 });
   }
 }

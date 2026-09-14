@@ -109,18 +109,39 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     if (!Number.isFinite(cost) || cost < 0) return json({ error: "سعر الخدمة غير صالح" }, { status: 500 });
 
     const accountResult = await db.execute({
-      sql: "SELECT balance FROM reseller_accounts WHERE id = ? AND is_banned = 0 LIMIT 1",
+      sql: "SELECT balance, site_id FROM reseller_accounts WHERE id = ? AND is_banned = 0 LIMIT 1",
       args: [accountId],
     });
-    const balance = Number((accountResult.rows[0] as unknown as JsonRecord | undefined)?.balance || 0);
+    const accountRow = accountResult.rows[0] as unknown as JsonRecord | undefined;
+    const balance = Number(accountRow?.balance || 0);
     if (balance < cost) return json({ error: "رصيد غير كافٍ" }, { status: 400 });
 
+    // LINK: debit the branch account AND the official owner wallet (users.balance via owner_user_id)
+    // 1) Branch account balance
     const debit = await db.execute({
       sql: "UPDATE reseller_accounts SET balance = balance - ? WHERE id = ? AND balance >= ?",
       args: [cost, accountId, cost],
     });
     if (Number(debit.rowsAffected || 0) !== 1) {
       return json({ error: "رصيد غير كافٍ أو تغيّر أثناء المعالجة" }, { status: 409 });
+    }
+
+    // 2) Official platform owner wallet (deduct same cost from the site owner's users.balance)
+    const siteRow = await db.execute({
+      sql: "SELECT owner_user_id FROM reseller_sites WHERE id = ? LIMIT 1",
+      args: [siteId],
+    });
+    const ownerUserId = Number((siteRow.rows[0] as unknown as JsonRecord | undefined)?.owner_user_id || 0);
+    if (ownerUserId > 0) {
+      const ownerDebit = await db.execute({
+        sql: "UPDATE users SET balance = balance - ? WHERE id = ? AND balance >= ?",
+        args: [cost, ownerUserId, cost],
+      });
+      if (Number(ownerDebit.rowsAffected || 0) !== 1) {
+        // Rollback branch debit: owner wallet doesn't have enough
+        await db.execute({ sql: "UPDATE reseller_accounts SET balance = balance + ? WHERE id = ?", args: [cost, accountId] });
+        return json({ error: "رصيد المالك الرئيسي غير كافٍ — تواصل مع إدارة المنصة" }, { status: 409 });
+      }
     }
 
     let localOrderId: number | null = null;

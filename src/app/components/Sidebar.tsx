@@ -191,6 +191,7 @@ export default function Sidebar({ open, onClose, user, basePath = "" }: SidebarP
     { type: "link", label: t("sidebar.terms"), description: getDescription("terms", "شروط الاستخدام والسياسات"), href: "/terms", icon: FileText },
     { type: "link", label: t("sidebar.createSite"), description: getDescription("createSite", "إنشاء موقع خدمات مجاني"), href: "/reseller", icon: Globe2, badge: "مجاني", badgeColor: "green" },
     { type: "link", label: t("sidebar.siteManagement"), description: getDescription("siteManagement", "إدارة الموقع والخدمات"), href: user?.role === "admin" ? "/admin" : "/site-management", icon: SlidersHorizontal },
+    { type: "link", label: "منصاتي", description: "روابط منصاتك المحفوظة — خاصة بك", href: "/my-sites", icon: Globe2 },
     ...customItems.sort((a, b) => a.sort_order - b.sort_order || a.id - b.id).map((item): MenuItem => ({
       type: "link",
       label: customLabel(item),
@@ -271,6 +272,7 @@ export default function Sidebar({ open, onClose, user, basePath = "" }: SidebarP
                 {[
                   { label: t("sidebar.adminPanel"), description: getDescription("adminPanel", "نظرة عامة وتنبيهات التشغيل"), href: "/admin", icon: Shield },
                   { label: "مركز الطلبات", description: getDescription("adminOrders", "مراجعة الطلبات وحالاتها"), href: "/admin/orders", icon: ClipboardList },
+                  { label: "جميع المنصات الفرعية", description: "عرض كل الروابط والمالكين والإحصائيات", href: "/admin/sites", icon: Globe2 },
                   { label: "المستخدمون", description: getDescription("adminUsers", "إدارة الحسابات والأرصدة"), href: "/admin/users", icon: User },
                   { label: "المزودون والخدمات", description: getDescription("adminProviders", "ربط المزودين وإدارة الكتالوج"), href: "/admin/providers", icon: Boxes },
                   { label: "إدارة مفاتيح API", description: getDescription("adminKeys", "تعطيل أو حذف مفاتيح المستخدمين"), href: "/admin/api-keys", icon: KeyRound },
