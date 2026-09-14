@@ -178,3 +178,4 @@ pnpm run healthcheck
 للتفاصيل التشغيلية الكاملة راجع [`DEPLOYMENT_HANDOFF_AR.md`](DEPLOYMENT_HANDOFF_AR.md) و[`docs/PROJECT_COMPLETE.md`](docs/PROJECT_COMPLETE.md).
 
 > ملاحظة: نجاح البناء والتشغيل المحلي لا يعني تفعيل الدفع الحقيقي تلقائيًا؛ ذلك يتطلب مفاتيح NOWPayments جديدة وتهيئة IPN webhook في بيئة الاستضافة.
+ 
