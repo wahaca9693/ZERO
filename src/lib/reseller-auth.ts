@@ -52,3 +52,7 @@ export async function requireResellerAccount(slug: string, requiredRole?: "admin
   if (requiredRole && String(account.role) !== requiredRole) throw new Error("Forbidden");
   return { session, account };
 }
+
+export async function requireResellerAdmin(slug: string) {
+  return requireResellerAccount(slug, "admin");
+}
