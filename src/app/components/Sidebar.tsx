@@ -200,9 +200,9 @@ export default function Sidebar({ open, onClose, user, basePath = "" }: SidebarP
       badge: item.badge || undefined,
       badgeColor: item.badge_color,
     })),
-  ]);
+  ];
 
-    return (
+  return (
     <>
       {open && (
         <div
