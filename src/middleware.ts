@@ -1,18 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { sessionOptions, type SessionUser } from "@/lib/session";
 import { getIronSession } from "iron-session";
-
-const sessionOptions = {
-  password: process.env.SESSION_SECRET || "complex_password_at_least_32_chars_long_for_security",
-  cookieName: "reseller_session",
-  cookieOptions: {
-    secure: process.env.NODE_ENV === "production",
-    httpOnly: true,
-    sameSite: "lax" as const,
-    maxAge: 60 * 60 * 24 * 7,
-    path: "/",
-  },
-};
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -24,7 +13,7 @@ export async function middleware(request: NextRequest) {
   const slug = match[1];
   const response = NextResponse.next();
   try {
-    const session = await getIronSession(request, response, sessionOptions);
+    const session = await getIronSession<SessionUser>(request, response, sessionOptions);
     const isAuthenticated = session.userId && session.siteSlug === slug;
     if (!isAuthenticated && !pathname.startsWith(`/sites/${encodeURIComponent(slug)}/login`)) {
       const loginUrl = new URL(`/sites/${encodeURIComponent(slug)}/login`, request.url);

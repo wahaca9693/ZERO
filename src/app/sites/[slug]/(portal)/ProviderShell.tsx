@@ -14,6 +14,19 @@ type Props = {
   children: React.ReactNode;
 };
 
+const navItems = (slug: string) => [
+  { label: "الرئيسية", href: `/sites/${encodeURIComponent(slug)}/dashboard`, icon: "🏠" },
+  { label: "الخدمات", href: `/sites/${encodeURIComponent(slug)}/services`, icon: "🛒" },
+  { label: "طلباتي", href: `/sites/${encodeURIComponent(slug)}/orders`, icon: "📦" },
+  { label: "المحفظة", href: `/sites/${encodeURIComponent(slug)}/wallet`, icon: "💰" },
+  { label: "الملف", href: `/sites/${encodeURIComponent(slug)}/profile`, icon: "👤" },
+];
+
+const secondaryLinks = (slug: string) => [
+  { label: "شحن الرصيد", href: `/sites/${encodeURIComponent(slug)}/deposit` },
+  { label: "سجل المعاملات", href: `/sites/${encodeURIComponent(slug)}/transactions` },
+];
+
 export default function ProviderShell({ slug, siteName, logoUrl, primary, secondary, primaryLight, expired, children }: Props) {
   const pathname = usePathname();
   const router = useRouter();
@@ -64,6 +77,15 @@ export default function ProviderShell({ slug, siteName, logoUrl, primary, second
             <span className="text-lg font-black text-white">{siteName}</span>
           </div>
           <div className="flex items-center gap-2 text-xs font-bold text-zinc-400">
+            {secondaryLinks(slug).map((link) => (
+              <button
+                key={link.href}
+                onClick={() => router.push(link.href)}
+                className="hidden rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-white hover:bg-white/10 sm:block"
+              >
+                {link.label}
+              </button>
+            ))}
             {expired && <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-amber-400">منتهي الاشتراك</span>}
             <button
               onClick={async () => {
@@ -80,19 +102,14 @@ export default function ProviderShell({ slug, siteName, logoUrl, primary, second
 
       {/* Bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/5 bg-[#0b0b09]/90 backdrop-blur-xl">
-        <div className="mx-auto grid max-w-md grid-cols-4 gap-1 px-2 py-2">
-          {[
-            { label: "الرئيسية", href: `/sites/${encodeURIComponent(slug)}/dashboard`, icon: "🏠" },
-            { label: "الخدمات", href: `/sites/${encodeURIComponent(slug)}/services`, icon: "🛒" },
-            { label: "طلباتي", href: `/sites/${encodeURIComponent(slug)}/orders`, icon: "📦" },
-            { label: "المحفظة", href: `/sites/${encodeURIComponent(slug)}/wallet`, icon: "💰" },
-          ].map((item) => {
-            const active = pathname === item.href;
+        <div className="mx-auto grid max-w-md grid-cols-5 gap-1 px-2 py-2">
+          {navItems(slug).map((item) => {
+            const active = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <button
                 key={item.href}
                 onClick={() => router.push(item.href)}
-                className={`flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[11px] font-bold transition ${
+                className={`flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] font-bold transition ${
                   active ? "bg-[var(--color-primary)]/15 text-[var(--color-primary)]" : "text-zinc-400"
                 }`}
               >
