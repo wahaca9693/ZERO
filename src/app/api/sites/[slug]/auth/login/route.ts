@@ -17,7 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
     const result = await db.execute({
       sql: "SELECT id, password_hash, role FROM reseller_accounts WHERE username = ? AND site_id = ? LIMIT 1",
-      args: [username, loaded.site.id],
+      args: [username, Number(loaded.site.id)],
     });
     const user = result.rows[0] as unknown as { id: number; password_hash: string; role: string } | undefined;
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {

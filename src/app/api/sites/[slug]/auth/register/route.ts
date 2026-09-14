@@ -22,7 +22,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       // First account ever registered on this site becomes its admin (site owner).
       const countRes = await db.execute({
         sql: "SELECT COUNT(*) as c FROM reseller_accounts WHERE site_id = ?",
-        args: [loaded.site.id],
+        args: [Number(loaded.site.id)],
       });
       const countRow = countRes.rows[0] as { c?: unknown } | undefined;
       const isFirst = Number(countRow?.c || 0) === 0;
@@ -30,13 +30,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
       await db.execute({
         sql: "INSERT INTO reseller_accounts (site_id, username, email, password_hash, role, balance, terms_accepted) VALUES (?, ?, ?, ?, ?, 0, 1)",
-        args: [loaded.site.id, username, email?.toLowerCase(), password_hash, role],
+        args: [Number(loaded.site.id), username, email?.toLowerCase(), password_hash, role],
       });
 
       // Re-read with the actual role (the one just inserted)
       const roleRes = await db.execute({
         sql: "SELECT id, role FROM reseller_accounts WHERE username = ? AND site_id = ? LIMIT 1",
-        args: [username, loaded.site.id],
+        args: [username, Number(loaded.site.id)],
       });
       const newUser = roleRes.rows[0] as unknown as { id: number; role: string } | undefined;
 
