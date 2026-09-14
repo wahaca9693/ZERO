@@ -12,6 +12,11 @@ type Props = {
   secondary: string;
 };
 
+function safeNextPath(value: string | null): string | null {
+  if (!value) return null;
+  return value.startsWith("/") && !value.startsWith("//") ? value : null;
+}
+
 export default function ResellerLoginForm({ slug, siteName, logoUrl, primary, secondary }: Props) {
   const router = useRouter();
   const search = useSearchParams();
@@ -42,7 +47,10 @@ export default function ResellerLoginForm({ slug, siteName, logoUrl, primary, se
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "تعذر إتمام العملية");
       setSuccess(registerMode ? "تم إنشاء حسابك داخل هذا الموقع." : "تم تسجيل الدخول.");
-      window.setTimeout(() => router.push(`/sites/${encodeURIComponent(slug)}/dashboard`), 350);
+      window.setTimeout(() => {
+        const next = safeNextPath(search.get("next"));
+        router.push(next || `/sites/${encodeURIComponent(slug)}/dashboard`);
+      }, 350);
     } catch (caught: unknown) { setError(caught instanceof Error ? caught.message : "تعذر إتمام العملية"); } finally { setLoading(false); }
   };
 
