@@ -331,7 +331,6 @@ export default function AsiacellAdminPage({ slug }: { slug: string }) {
             {message}
           </div>
         )}
-      </div>
     </div>
   );
 }
