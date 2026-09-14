@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import DashboardLayout from "../../components/DashboardLayout";
-import { useInitialAuthUser } from "../../components/Providers";
-import { Copy, Check, ExternalLink, Globe2, Loader2, Lock, ScriptKey } from "lucide-react";
+import DashboardLayout from "../components/DashboardLayout";
+import { useInitialAuthUser } from "../components/Providers";
+import { Copy, Check, ExternalLink, Globe2, Loader2, Lock, KeyRound } from "lucide-react";
 
 type MySite = {
   id: number;
