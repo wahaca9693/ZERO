@@ -95,7 +95,7 @@ export default function MySitesPage() {
             </div>
 
             <p className="mt-4 flex items-center gap-1.5 text-xs text-zinc-500">
-              <ScriptKey size={13} /> هذه الروابط محفوظة في حسابك — لا يراها المستخدمون الآخرون
+              <KeyRound size={13} /> هذه الروابط محفوظة في حسابك — لا يراها المستخدمون الآخرون
             </p>
           </div>
         ))}
