@@ -78,7 +78,7 @@ export async function POST(request: Request, { params }: Params) {
       sql: `INSERT INTO reseller_sites
             (owner_user_id, creation_key, slug, display_name, parent_site_id, subscription_status, status, subscription_price, subscription_currency, theme_json, payment_methods_json, provider_access_enabled)
             VALUES (?, ?, ?, ?, ?, 'active', 'active', 0, 'USD', ?, ?, 0)`,
-      args: [ownerUserId, creationKey, newSlug, displayName.trim(), parentSiteId, parentRow?.theme_json || "{}", parentRow?.payment_methods_json || "[]"],
+      args: [ownerUserId, creationKey, newSlug, displayName.trim(), parentSiteId, String(parentRow?.theme_json || "{}"), String(parentRow?.payment_methods_json || "[]")],
     });
 
     const siteId = Number(result.lastInsertRowid);
