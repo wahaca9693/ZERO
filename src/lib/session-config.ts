@@ -9,7 +9,7 @@ export type SessionUser = {
 // Pure config — NO runtime imports from iron-session at module load (type-only),
 // so this file is safe to import from both Edge runtime (middleware) and Node
 // runtime (API routes).
-export const sessionOptions: SessionOptions<SessionUser> = {
+export const sessionOptions: SessionOptions = {
   password: process.env.SESSION_SECRET || "complex_password_at_least_32_chars_long_for_security",
   cookieName: "reseller_session",
   cookieOptions: {
