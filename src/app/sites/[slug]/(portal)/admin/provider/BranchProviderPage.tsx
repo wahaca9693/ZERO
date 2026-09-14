@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, KeyRound, Save, Check, AlertCircle, Link, XCircle, Wifi, WifiOff } from "lucide-react";
+import { Loader2, KeyRound, Save, Check, AlertCircle, Link, XCircle, Wifi, WifiOff, Eye, EyeOff } from "lucide-react";
 
 type Props = { slug: string };
 
