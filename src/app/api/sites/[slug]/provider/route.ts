@@ -40,25 +40,30 @@ export async function POST(request: Request, { params }: Params) {
     const siteId = Number(auth.account.site_id);
 
     const body = await request.json();
-    const { api_key, owner_user_id } = body as { api_key?: string; owner_user_id?: number };
+    const { api_key } = body as { api_key?: string };
 
     if (!api_key || !api_key.trim()) {
       return NextResponse.json({ error: "مفتاح API مطلوب" }, { status: 400 });
     }
-    if (!owner_user_id || owner_user_id <= 0) {
-      return NextResponse.json({ error: "معرف المستخدم الرسمي مطلوب" }, { status: 400 });
-    }
 
-    // Validate the key works by making a test call
+    // Validate the key works by making a test call to fixed endpoint
     const testRes = await fetch(`${FIXED_API_ENDPOINT}/services`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ key: api_key.trim(), action: "services" }),
     });
     const testData = await testRes.json().catch(() => null);
-    if (!testRes.ok || !testData || Array.isArray(testData) === false) {
-      return NextResponse.json({ error: "مفتاح API غير صالح أو لا يعمل" }, { status: 400 });
+    
+    if (!testRes.ok || !testData || !Array.isArray(testData)) {
+      return NextResponse.json({ 
+        error: "مفتاح API غير صالح أو لا يعمل",
+        connected: false 
+      }, { status: 400 });
     }
+
+    // Key works - get owner from the API response if possible
+    // For now, use the admin who added the key as owner
+    const ownerUserId = auth.account.id; // Use the admin's account as owner
 
     // Upsert branch provider
     const existing = await db.execute({
@@ -68,18 +73,25 @@ export async function POST(request: Request, { params }: Params) {
     if (existing.rows.length > 0) {
       await db.execute({
         sql: "UPDATE branch_providers SET api_key = ?, owner_user_id = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE site_id = ?",
-        args: [api_key.trim(), owner_user_id, siteId],
+        args: [api_key.trim(), ownerUserId, siteId],
       });
     } else {
       await db.execute({
         sql: "INSERT INTO branch_providers (site_id, api_key, owner_user_id) VALUES (?, ?, ?)",
-        args: [siteId, api_key.trim(), owner_user_id],
+        args: [siteId, api_key.trim(), ownerUserId],
       });
     }
 
-    return NextResponse.json({ success: true, message: "تم حفظ مفتاح API بنجاح" });
+    return NextResponse.json({ 
+      success: true, 
+      connected: true,
+      message: "تم ربط مفتاح API بنجاح — الخدمات مربوطة الآن" 
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unexpected error";
-    return NextResponse.json({ error: message }, { status: message === "Forbidden" ? 403 : 401 });
+    return NextResponse.json({ 
+      error: message, 
+      connected: false 
+    }, { status: 500 });
   }
 }
