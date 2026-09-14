@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import DashboardLayout from "../components/DashboardLayout";
-import { useInitialAuthUser } from "../components/Providers";
 import { Copy, Check, ExternalLink, Globe2, Loader2, Lock, KeyRound } from "lucide-react";
 
 type MySite = {
@@ -17,7 +16,6 @@ type MySite = {
 };
 
 export default function MySitesPage() {
-  const user = useInitialAuthUser();
   const [sites, setSites] = useState<MySite[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
@@ -43,7 +41,7 @@ export default function MySitesPage() {
   };
 
   return (
-    <DashboardLayout user={user}>
+    <DashboardLayout>
       <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
         <div>
           <h1 className="text-2xl font-black text-white">منصاتي</h1>

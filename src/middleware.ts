@@ -18,14 +18,15 @@ export async function middleware(request: NextRequest) {
 
   // Protect main-platform page /my-sites (requires login)
   if (pathname === "/my-sites" || pathname.startsWith("/my-sites/")) {
+    const response = NextResponse.next();
     try {
       const session = await getIronSession<SessionUser>(request, response, sessionOptions);
-      if (!session.userId && !session.isLoggedIn) {
+      if (!session.userId) {
         const loginUrl = new URL("/login", request.url);
         loginUrl.searchParams.set("next", pathname);
         return NextResponse.redirect(loginUrl);
       }
-      return NextResponse.next();
+      return response;
     } catch {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("next", pathname);
@@ -34,8 +35,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // Only intercept reseller site protected pages (portal + dashboard areas).
-    // Services are public for guests, mirroring the main platform (/services).
-    const match = pathname.match(/^\/sites\/([^/]+)\/(dashboard|orders|wallet|deposit|transactions|profile|admin)(\/|$)/);
+  // Services are public for guests, mirroring the main platform (/services).
+  const match = pathname.match(/^\/sites\/([^/]+)\/(dashboard|orders|wallet|deposit|transactions|profile|admin)(\/|$)/);
   if (!match) return NextResponse.next();
 
   const slug = match[1];

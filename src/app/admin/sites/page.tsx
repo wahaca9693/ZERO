@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/app/components/DashboardLayout";
-import { useInitialAuthUser } from "@/app/components/Providers";
 import { Copy, Check, ExternalLink, Globe2, Loader2, Shield, Users, ShoppingBag, Lock, Banknote } from "lucide-react";
 
 type SiteRow = {
@@ -25,7 +24,6 @@ type SiteRow = {
 };
 
 export default function AdminSitesPage() {
-  const user = useInitialAuthUser();
   const [sites, setSites] = useState<SiteRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +51,7 @@ export default function AdminSitesPage() {
   };
 
   return (
-    <DashboardLayout user={user}>
+    <DashboardLayout>
       <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">
         <div className="flex items-center gap-3">
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-400"><Shield size={22} /></span>
