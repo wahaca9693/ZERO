@@ -151,7 +151,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
     // Execute order via FIXED_API_ENDPOINT using branch's API key (GET with key in query)
     const providerApiUrl = "https://www.follower4.zone.id/api/v2";
-    const branchKeyRow = await db.execute({ sql: "SELECT api_key FROM branch_providers WHERE site_id = ? LIMIT 1", args: [siteId] });
+    const branchKeyRow = await db.execute({ sql: "SELECT ak.api_key FROM branch_providers bp JOIN api_keys ak ON ak.user_id = bp.owner_user_id WHERE bp.site_id = ? LIMIT 1", args: [siteId] });
     const branchKey = String(branchKeyRow.rows[0]?.api_key || "");
     const orderUrl = new URL(providerApiUrl);
     orderUrl.searchParams.set("key", branchKey);

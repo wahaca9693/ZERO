@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, initDb } from "@/lib/db";
 import { requireResellerAdmin } from "@/lib/reseller-auth";
+import { resolveApiKey } from "@/lib/api-key-cache";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -46,33 +47,19 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ error: "مفتاح API مطلوب" }, { status: 400 });
     }
 
-    // Validate the key works by making a test call to fixed endpoint (GET with key in query string)
-    const testUrl = new URL(FIXED_API_ENDPOINT);
-    testUrl.searchParams.set("key", api_key.trim());
-    testUrl.searchParams.set("action", "services");
-    const testRes = await fetch(testUrl.toString(), {
-      method: "GET",
-      headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0 (Linux; Android 13)" },
-      cache: "no-store",
-    });
-    const testData = await testRes.json().catch(() => null);
-    
-    // API returns { services: [...], count, total, page, limit, has_more } or array
-    const rawList = Array.isArray(testData) ? testData : (testData as Record<string, unknown>)?.services;
-    const servicesList = Array.isArray(rawList) ? (rawList as Array<Record<string, unknown>>) : null;
-    
-    if (!testRes.ok || !servicesList) {
+    // 1. Validate the key exists and is active in the system (official security)
+    const resolved = await resolveApiKey(api_key.trim());
+    if (!resolved) {
       return NextResponse.json({ 
-        error: String((testData as Record<string, unknown>)?.error || "مفتاح API غير صالح أو لا يعمل"),
+        error: "مفتاح API غير صالح أو غير نشط", 
         connected: false 
       }, { status: 400 });
     }
 
-    // Key works - get owner from the API response if possible
-    // For now, use the admin who added the key as owner
-    const ownerUserId = auth.account.id; // Use the admin's account as owner
+    // 2. Owner ID is the account associated with this API key
+    const ownerUserId = resolved.userId;
 
-    // Upsert branch provider
+    // 3. Link the key to the branch
     const existing = await db.execute({
       sql: "SELECT id FROM branch_providers WHERE site_id = ? LIMIT 1",
       args: [siteId],

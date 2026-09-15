@@ -1,37 +1,31 @@
 import { NextResponse } from "next/server";
 import { db, initDb } from "@/lib/db";
-import { loadPublicSite } from "@/lib/reseller-sites";
-import { getPublicServiceId, loadServiceCatalog } from "@/lib/service-catalog";
+import { requireResellerAdmin } from "@/lib/reseller-auth";
+import { loadServiceCatalog } from "@/lib/service-catalog";
+
+type Params = { params: Promise<{ slug: string }> };
 
 const FIXED_API_ENDPOINT = "https://www.follower4.zone.id/api/v2";
 
-/**
- * GET /api/sites/{slug}/services
- * Public catalog for a reseller site — uses branch's own API key to fetch services.
- */
-export async function GET(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
+export async function GET(_request: Request, { params }: Params) {
   try {
     const { slug } = await params;
     await initDb();
-    const loaded = await loadPublicSite(slug);
-    if (!loaded.site) return NextResponse.json({ error: "الموقع غير موجود" }, { status: 404 });
-    const siteId = Number(loaded.site.id);
+    const auth = await requireResellerAdmin(slug);
+    const siteId = Number(auth.account.site_id);
 
-    // Get branch provider API key
-    const providerResult = await db.execute({
-      sql: "SELECT api_key FROM branch_providers WHERE site_id = ? AND is_active = 1 LIMIT 1",
+    const hasProvider = await db.execute({
+      sql: "SELECT id FROM branch_providers WHERE site_id = ? LIMIT 1",
       args: [siteId],
     });
-    const providerRow = providerResult.rows[0] as unknown as Record<string, unknown> | undefined;
-    const apiKey = providerRow?.api_key ? String(providerRow.api_key) : null;
 
-    if (!apiKey) {
-      // Fallback: use main platform catalog if no branch key configured
+    // Fallback to main catalog if no provider is linked
+    if (!hasProvider.rows[0]) {
       const catalog = await loadServiceCatalog();
       const services = catalog.map((service) => ({
-        service: getPublicServiceId(service),
+        service: service.publicId,
         name: service.name,
-        nameAr: service.nameAr || service.name,
+        nameAr: service.nameAr,
         description: service.description,
         descriptionAr: service.descriptionAr || service.description,
         category: service.category,
@@ -47,10 +41,22 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
       return NextResponse.json({ services, categories, count: services.length });
     }
 
-    // Fetch services from fixed API endpoint using branch's API key (GET with key in query)
+    // Get the actual user's API key who linked the branch
+    const apiKeyRow = await db.execute({
+      sql: "SELECT ak.api_key FROM branch_providers bp JOIN api_keys ak ON ak.user_id = bp.owner_user_id WHERE bp.site_id = ? LIMIT 1",
+      args: [siteId],
+    });
+    const apiKey = apiKeyRow.rows[0]?.api_key as string;
+
+    if (!apiKey) {
+      return NextResponse.json({ error: "لم يتم العثور على مفتاح مرتبط بالفرع" }, { status: 502 });
+    }
+
+    // Call official API using the user's valid key
     const apiUrl = new URL(FIXED_API_ENDPOINT);
     apiUrl.searchParams.set("key", apiKey);
     apiUrl.searchParams.set("action", "services");
+    
     const apiRes = await fetch(apiUrl.toString(), {
       method: "GET",
       headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0 (Linux; Android 13)" },
