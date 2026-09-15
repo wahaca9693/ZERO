@@ -919,6 +919,7 @@ async function applySchemaMigrations() {
       ], "write");
       // Update existing index if needed
       console.log("[db] branch_providers rebuilt: UNIQUE constraint removed, count =", existing);
+      }
     }
   } catch (error) {
     console.warn("[db] branch_providers rebuild skipped:", error instanceof Error ? error.message : error);
