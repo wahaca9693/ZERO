@@ -48,7 +48,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
     }
 
     // Fetch services from fixed API endpoint using branch's API key
-    const apiRes = await fetch(`${FIXED_API_ENDPOINT}/services`, {
+    const apiRes = await fetch(FIXED_API_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ key: apiKey, action: "services" }),

@@ -47,16 +47,16 @@ export async function POST(request: Request, { params }: Params) {
     }
 
     // Validate the key works by making a test call to fixed endpoint
-    const testRes = await fetch(`${FIXED_API_ENDPOINT}/services`, {
+    const testRes = await fetch(FIXED_API_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ key: api_key.trim(), action: "services" }),
     });
     const testData = await testRes.json().catch(() => null);
     
-    if (!testRes.ok || !testData || !Array.isArray(testData)) {
+    if (!testRes.ok || !testData || testData.error || !Array.isArray(testData)) {
       return NextResponse.json({ 
-        error: "مفتاح API غير صالح أو لا يعمل",
+        error: String(testData?.error || "مفتاح API غير صالح أو لا يعمل"),
         connected: false 
       }, { status: 400 });
     }
