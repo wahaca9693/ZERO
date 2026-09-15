@@ -58,13 +58,16 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
     });
     const apiData = await apiRes.json().catch(() => null);
 
-    if (!apiRes.ok || !Array.isArray(apiData)) {
+    // API returns { services: [...], count, total, page, limit, has_more } or bare array
+    const servicesList = Array.isArray(apiData) ? apiData : (apiData?.services && Array.isArray(apiData.services)) ? apiData.services : null;
+
+    if (!apiRes.ok || !servicesList) {
       console.error("[branch-services] API error:", apiData);
       return NextResponse.json({ error: "تعذر جلب الخدمات من المزود" }, { status: 502 });
     }
 
     // Transform to branch format
-    const services = apiData.map((svc: Record<string, unknown>) => ({
+    const services = servicesList.map((svc: Record<string, unknown>) => ({
       service: String(svc.service || svc.id || ""),
       name: String(svc.name || ""),
       nameAr: String(svc.nameAr || svc.name || ""),

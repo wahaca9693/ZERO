@@ -57,9 +57,12 @@ export async function POST(request: Request, { params }: Params) {
     });
     const testData = await testRes.json().catch(() => null);
     
-    if (!testRes.ok || !testData || testData.error || !Array.isArray(testData)) {
+    // API returns { services: [...], count, total, page, limit, has_more } or array
+    const servicesList = Array.isArray(testData) ? testData : (testData?.services && Array.isArray(testData.services)) ? testData.services : null;
+    
+    if (!testRes.ok || !servicesList) {
       return NextResponse.json({ 
-        error: String(testData?.error || "مفتاح API غير صالح أو لا يعمل"),
+        error: String((testData as Record<string, unknown>)?.error || "مفتاح API غير صالح أو لا يعمل"),
         connected: false 
       }, { status: 400 });
     }
