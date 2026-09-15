@@ -890,8 +890,13 @@ async function applySchemaMigrations() {
         sql: "SELECT COUNT(*) as c FROM branch_providers",
       });
       const existing = Number((check.rows[0] as unknown as { c: number }).c || 0);
-      // SQLite foreign_keys PRAGMA is session-scoped and libSQL may ignore it; safe here.
-      await db.batch([
+      // Only proceed if the old table exists (concurrent-safe: skip if another process already rebuilt)
+      const oldCheck = await db.execute({
+        sql: "SELECT COUNT(*) as c FROM sqlite_master WHERE type='table' AND name='branch_providers_old'",
+      });
+      const oldExists = Number((oldCheck.rows[0] as unknown as { c: number }).c || 0) > 0;
+      if (oldExists) {
+        await db.batch([
         { sql: `ALTER TABLE branch_providers RENAME TO branch_providers_old` },
         { sql: `CREATE TABLE IF NOT EXISTS branch_providers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
