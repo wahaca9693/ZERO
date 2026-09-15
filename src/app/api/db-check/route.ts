@@ -5,16 +5,14 @@ export async function GET() {
   try {
     await initDb();
     const result = await db.execute({
-      sql: "SELECT sql FROM sqlite_master WHERE type='table' AND name='branch_providers'",
+      sql: "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%branch%'",
     });
-    const createSql = String((result.rows[0] as unknown as Record<string, unknown> | undefined)?.sql || "");
-    const url = (process.env.TURSO_DATABASE_URL || "").replace(/^(libsql|https):\/\/([^:]+):([^@]+)@/, "$1://$2:***@");
-    return NextResponse.json({
-      db_url: url,
-      has_unique: createSql.includes("UNIQUE"),
-      create_sql_preview: createSql.substring(0, 200),
-      has_old_table: undefined,
+    const tables = (result.rows as unknown as Array<{ name: string }>).map((r) => r.name);
+    const cols = await db.execute({
+      sql: "PRAGMA table_info(branch_providers)",
     });
+    const columns = (cols.rows as unknown as Array<{ name: string }>).map((r) => r.name);
+    return NextResponse.json({ tables, columns });
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
