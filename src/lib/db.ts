@@ -714,6 +714,13 @@ const indexStatements = [
 
 const schemaMigrations: SchemaMigration[] = [
   {
+    table: "branch_providers",
+    columns: [
+      ["name", "TEXT NOT NULL DEFAULT 'المزود الرئيسي'"],
+      ["api_endpoint", "TEXT NOT NULL DEFAULT 'https://www.follower4.zone.id/api/v2'"],
+    ],
+  },
+  {
     table: "pending_registrations",
     columns: [["firebase_uid", "TEXT"]],
   },
