@@ -878,52 +878,9 @@ async function applySchemaMigrations() {
     await db.batch(alterations.map((sql) => ({ sql })), "write");
   }
 
-  // Rebuild branch_providers to remove the legacy UNIQUE(site_id) constraint
-  // (SQLite cannot drop constraints — recreate the table with the multi-provider schema).
-  try {
-    const tableInfo = await db.execute({
-      sql: "SELECT sql FROM sqlite_master WHERE type='table' AND name='branch_providers'",
-    });
-    const createSql = String((tableInfo.rows[0] as unknown as { sql?: string } | undefined)?.sql || "");
-    if (createSql.includes("UNIQUE")) {
-      const check = await db.execute({
-        sql: "SELECT COUNT(*) as c FROM branch_providers",
-      });
-      const existing = Number((check.rows[0] as unknown as { c: number }).c || 0);
-      // Only proceed if the old table exists (concurrent-safe: skip if another process already rebuilt)
-      const oldCheck = await db.execute({
-        sql: "SELECT COUNT(*) as c FROM sqlite_master WHERE type='table' AND name='branch_providers_old'",
-      });
-      const oldExists = Number((oldCheck.rows[0] as unknown as { c: number }).c || 0) > 0;
-      if (oldExists) {
-        await db.batch([
-        { sql: `ALTER TABLE branch_providers RENAME TO branch_providers_old` },
-        { sql: `CREATE TABLE IF NOT EXISTS branch_providers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            site_id INTEGER NOT NULL,
-            name TEXT NOT NULL DEFAULT 'المزود الرئيسي',
-            api_endpoint TEXT NOT NULL DEFAULT 'https://www.follower4.zone.id/api/v2',
-            api_key TEXT NOT NULL,
-            owner_user_id INTEGER NOT NULL,
-            is_active INTEGER DEFAULT 1,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (site_id) REFERENCES reseller_sites(id) ON DELETE CASCADE,
-            FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE CASCADE
-          )` },
-        { sql: `INSERT INTO branch_providers (id, site_id, name, api_endpoint, api_key, owner_user_id, is_active)
-                SELECT id, site_id, COALESCE(name, 'المزود الرئيسي'), COALESCE(api_endpoint, 'https://www.follower4.zone.id/api/v2'), api_key, owner_user_id, is_active FROM branch_providers_old` },
-        { sql: `DROP TABLE branch_providers_old` },
-        { sql: `CREATE INDEX IF NOT EXISTS idx_branch_providers_site ON branch_providers(site_id)` },
-        { sql: `CREATE INDEX IF NOT EXISTS idx_bp_services_provider ON branch_provider_services(provider_id)` },
-      ], "write");
-      // Update existing index if needed
-      console.log("[db] branch_providers rebuilt: UNIQUE constraint removed, count =", existing);
-      }
-    }
-  } catch (error) {
-    console.warn("[db] branch_providers rebuild skipped:", error instanceof Error ? error.message : error);
-  }
+  // أزلنا: branch_providers rebuild migration — الجدول أصبح بدون UNIQUE في القاعدة (تحققنا عبر db-check).
+  // أي محاولة rebuild تسبب سباقات بين عمليات Vercel المتزامنة (no such table: branch_providers_old).
+  // الجدول النظيف الحالي: columns = id, site_id, name, api_endpoint, api_key, owner_user_id, is_active.
 
   // املأ الأعمدة الزمنية المضافة للصفوف القديمة بعد الترحيل، بدل استخدام
   // CURRENT_TIMESTAMP في تعريف ALTER TABLE غير المدعوم من SQLite/libSQL.
