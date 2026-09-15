@@ -58,7 +58,8 @@ export async function POST(request: Request, { params }: Params) {
     const testData = await testRes.json().catch(() => null);
     
     // API returns { services: [...], count, total, page, limit, has_more } or array
-    const servicesList = Array.isArray(testData) ? testData : (testData?.services && Array.isArray(testData.services)) ? testData.services : null;
+    const rawList = Array.isArray(testData) ? testData : (testData as Record<string, unknown>)?.services;
+    const servicesList = Array.isArray(rawList) ? (rawList as Array<Record<string, unknown>>) : null;
     
     if (!testRes.ok || !servicesList) {
       return NextResponse.json({ 

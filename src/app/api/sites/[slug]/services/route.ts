@@ -43,7 +43,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
         serviceType: service.type,
         is_new: false,
       }));
-      const categories = Array.from(new Set(services.map((s) => s.category).filter(Boolean)));
+      const categories = Array.from(new Set(services.map((s: { category?: string }) => s.category || "").filter(Boolean)));
       return NextResponse.json({ services, categories, count: services.length });
     }
 
@@ -59,7 +59,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
     const apiData = await apiRes.json().catch(() => null);
 
     // API returns { services: [...], count, total, page, limit, has_more } or bare array
-    const servicesList = Array.isArray(apiData) ? apiData : (apiData?.services && Array.isArray(apiData.services)) ? apiData.services : null;
+    const rawList = Array.isArray(apiData) ? apiData : (apiData as Record<string, unknown>)?.services;
+    const servicesList = Array.isArray(rawList) ? (rawList as Array<Record<string, unknown>>) : null;
 
     if (!apiRes.ok || !servicesList) {
       console.error("[branch-services] API error:", apiData);
@@ -83,7 +84,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
       is_new: Boolean(svc.is_new),
     }));
 
-    const categories = Array.from(new Set(services.map((s) => s.category).filter(Boolean)));
+    const categories = Array.from(new Set(services.map((s: { category?: string }) => s.category || "").filter(Boolean)));
     return NextResponse.json({ services, categories, count: services.length });
   } catch (error) {
     console.error("[branch-services]", error);
