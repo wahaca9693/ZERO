@@ -149,20 +149,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       throw error;
     }
 
-    // Execute order via FIXED_API_ENDPOINT using branch's API key
+    // Execute order via FIXED_API_ENDPOINT using branch's API key (GET with key in query)
     const providerApiUrl = "https://www.follower4.zone.id/api/v2";
-    const formData = new URLSearchParams({
-      key: (await db.execute({ sql: "SELECT api_key FROM branch_providers WHERE site_id = ? LIMIT 1", args: [siteId] })).rows[0]?.api_key as string || "",
-      action: "add",
-      service: String(providerService.remote_service_id),
-      link: String(link),
-      quantity: String(qty),
-    });
+    const branchKeyRow = await db.execute({ sql: "SELECT api_key FROM branch_providers WHERE site_id = ? LIMIT 1", args: [siteId] });
+    const branchKey = String(branchKeyRow.rows[0]?.api_key || "");
+    const orderUrl = new URL(providerApiUrl);
+    orderUrl.searchParams.set("key", branchKey);
+    orderUrl.searchParams.set("action", "add");
+    orderUrl.searchParams.set("service", String(providerService.remote_service_id));
+    orderUrl.searchParams.set("link", String(link));
+    orderUrl.searchParams.set("quantity", String(qty));
 
-    const providerRes = await fetch(providerApiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
-      body,
+    const providerRes = await fetch(orderUrl.toString(), {
+      method: "GET",
+      headers: { "Accept": "application/json" },
       cache: "no-store",
     });
     const providerData = await providerRes.json().catch(() => null);

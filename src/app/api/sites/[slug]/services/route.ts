@@ -47,11 +47,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
       return NextResponse.json({ services, categories, count: services.length });
     }
 
-    // Fetch services from fixed API endpoint using branch's API key
-    const apiRes = await fetch(FIXED_API_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ key: apiKey, action: "services" }),
+    // Fetch services from fixed API endpoint using branch's API key (GET with key in query)
+    const apiUrl = new URL(FIXED_API_ENDPOINT);
+    apiUrl.searchParams.set("key", apiKey);
+    apiUrl.searchParams.set("action", "services");
+    const apiRes = await fetch(apiUrl.toString(), {
+      method: "GET",
+      headers: { "Accept": "application/json" },
       cache: "no-store",
     });
     const apiData = await apiRes.json().catch(() => null);

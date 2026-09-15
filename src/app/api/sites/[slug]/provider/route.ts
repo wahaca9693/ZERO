@@ -46,11 +46,14 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ error: "مفتاح API مطلوب" }, { status: 400 });
     }
 
-    // Validate the key works by making a test call to fixed endpoint
-    const testRes = await fetch(FIXED_API_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ key: api_key.trim(), action: "services" }),
+    // Validate the key works by making a test call to fixed endpoint (GET with key in query string)
+    const testUrl = new URL(FIXED_API_ENDPOINT);
+    testUrl.searchParams.set("key", api_key.trim());
+    testUrl.searchParams.set("action", "services");
+    const testRes = await fetch(testUrl.toString(), {
+      method: "GET",
+      headers: { "Accept": "application/json" },
+      cache: "no-store",
     });
     const testData = await testRes.json().catch(() => null);
     
