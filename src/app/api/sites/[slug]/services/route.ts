@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, initDb } from "@/lib/db";
 import { requireResellerAdmin } from "@/lib/reseller-auth";
-import { loadServiceCatalog } from "@/lib/service-catalog";
+import { loadServiceCatalog, getPublicServiceId } from "@/lib/service-catalog";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -23,7 +23,7 @@ export async function GET(_request: Request, { params }: Params) {
     if (!hasProvider.rows[0]) {
       const catalog = await loadServiceCatalog();
       const services = catalog.map((service) => ({
-        service: service.publicId,
+        service: getPublicServiceId(service),
         name: service.name,
         nameAr: service.nameAr,
         description: service.description,
