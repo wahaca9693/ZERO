@@ -5,8 +5,6 @@ import { loadServiceCatalog, getPublicServiceId } from "@/lib/service-catalog";
 
 type Params = { params: Promise<{ slug: string }> };
 
-const FIXED_API_ENDPOINT = "https://www.follower4.zone.id/api/v2";
-
 export async function GET(_request: Request, { params }: Params) {
   try {
     const { slug } = await params;
@@ -14,13 +12,15 @@ export async function GET(_request: Request, { params }: Params) {
     const auth = await requireResellerAdmin(slug);
     const siteId = Number(auth.account.site_id);
 
-    const hasProvider = await db.execute({
-      sql: "SELECT id FROM branch_providers WHERE site_id = ? LIMIT 1",
+    // Get all active providers for this site
+    const provResult = await db.execute({
+      sql: "SELECT id, name FROM branch_providers WHERE site_id = ? AND is_active = 1 ORDER BY id",
       args: [siteId],
     });
+    const providers = provResult.rows as unknown as Array<{ id: number; name: string }>;
 
-    // Fallback to main catalog if no provider is linked
-    if (!hasProvider.rows[0]) {
+    // If no active providers: fallback to main official catalog
+    if (providers.length === 0) {
       const catalog = await loadServiceCatalog();
       const services = catalog.map((service) => ({
         service: getPublicServiceId(service),
@@ -41,57 +41,35 @@ export async function GET(_request: Request, { params }: Params) {
       return NextResponse.json({ services, categories, count: services.length });
     }
 
-    // Get the actual user's API key who linked the branch
-    const apiKeyRow = await db.execute({
-      sql: "SELECT ak.api_key FROM branch_providers bp JOIN api_keys ak ON ak.user_id = bp.owner_user_id WHERE bp.site_id = ? LIMIT 1",
-      args: [siteId],
-    });
-    const apiKey = apiKeyRow.rows[0]?.api_key as string;
-
-    if (!apiKey) {
-      return NextResponse.json({ error: "لم يتم العثور على مفتاح مرتبط بالفرع" }, { status: 502 });
+    // Collect services from all active providers (not hidden)
+    const allServices: Array<Record<string, unknown>> = [];
+    for (const prov of providers) {
+      const svcResult = await db.execute({
+        sql: "SELECT remote_service_id, name, name_ar, description, rate, min, max, category, type FROM branch_provider_services WHERE provider_id = ? AND is_hidden = 0 ORDER BY category, name",
+        args: [prov.id],
+      });
+      const rows = svcResult.rows as unknown as Array<Record<string, unknown>>;
+      for (const row of rows) {
+        allServices.push({
+          service: String(row.remote_service_id),
+          name: String(row.name),
+          nameAr: String(row.name_ar || row.name),
+          description: String(row.description || ""),
+          descriptionAr: String(row.description_ar || row.description || ""),
+          category: String(row.category),
+          categoryAr: String(row.category),
+          rate: Number(row.rate),
+          min: Number(row.min),
+          max: Number(row.max),
+          platform: String(row.category),
+          serviceType: String(row.type || "service"),
+          is_new: false,
+        });
+      }
     }
 
-    // Call official API using the user's valid key
-    const apiUrl = new URL(FIXED_API_ENDPOINT);
-    apiUrl.searchParams.set("key", apiKey);
-    apiUrl.searchParams.set("action", "services");
-    
-    const apiRes = await fetch(apiUrl.toString(), {
-      method: "GET",
-      headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0 (Linux; Android 13)" },
-      cache: "no-store",
-    });
-    const apiData = await apiRes.json().catch(() => null);
-
-    // API returns { services: [...], count, total, page, limit, has_more } or bare array
-    const rawList = Array.isArray(apiData) ? apiData : (apiData as Record<string, unknown>)?.services;
-    const servicesList = Array.isArray(rawList) ? (rawList as Array<Record<string, unknown>>) : null;
-
-    if (!apiRes.ok || !servicesList) {
-      console.error("[branch-services] API error:", apiData);
-      return NextResponse.json({ error: "تعذر جلب الخدمات من المزود" }, { status: 502 });
-    }
-
-    // Transform to branch format
-    const services = servicesList.map((svc: Record<string, unknown>) => ({
-      service: String(svc.service || svc.id || ""),
-      name: String(svc.name || ""),
-      nameAr: String(svc.nameAr || svc.name || ""),
-      description: String(svc.description || ""),
-      descriptionAr: String(svc.descriptionAr || svc.description || ""),
-      category: String(svc.category || ""),
-      categoryAr: String(svc.categoryAr || svc.category || ""),
-      rate: Number(svc.rate || 0),
-      min: Number(svc.min || 0),
-      max: Number(svc.max || 0),
-      platform: String(svc.category || ""),
-      serviceType: String(svc.type || "service"),
-      is_new: Boolean(svc.is_new),
-    }));
-
-    const categories = Array.from(new Set(services.map((s: { category?: string }) => s.category || "").filter(Boolean)));
-    return NextResponse.json({ services, categories, count: services.length });
+    const categories = Array.from(new Set(allServices.map((s) => String(s.category)).filter(Boolean)));
+    return NextResponse.json({ services: allServices, categories, count: allServices.length });
   } catch (error) {
     console.error("[branch-services]", error);
     return NextResponse.json({ error: "تعذر تحميل الخدمات" }, { status: 500 });

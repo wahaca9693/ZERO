@@ -1,17 +1,12 @@
 import { notFound } from "next/navigation";
-import { initDb } from "@/lib/db";
-import { loadPublicSite, publicSiteData } from "@/lib/reseller-sites";
-import ResellerAdminModule from "../_lib/AdminModule";
+import { getResellerSite } from "@/lib/reseller-auth";
+import BranchProvidersPage from "./BranchProvidersPage";
 
-type Props = { params: Promise<{ slug: string }> };
+export const metadata = { title: "المزودون والخدمات | لوحة الإدارة" };
 
-export default async function Page({ params }: Props) {
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  await initDb();
-  const loaded = await loadPublicSite(slug);
-  if (!loaded.site) notFound();
-  const origin = process.env.NEXT_PUBLIC_APP_URL || "https://zero-lake.vercel.app";
-  const site = publicSiteData(loaded.site, origin, loaded.expired);
-  void (site.theme as { siteName?: string }).siteName;
-  return <ResellerAdminModule slug={slug} title="المزودون والخدمات" description="مراجعة المزودين والكتالوج المشترك" endpoint="/admin/providers" icon="providers" />;
+  const site = await getResellerSite(slug);
+  if (!site) notFound();
+  return <BranchProvidersPage slug={slug} />;
 }
