@@ -29,6 +29,7 @@ import {
   Filter,
   Layers3,
   DollarSign,
+  Save,
 } from "lucide-react";
 import { detectPlatform, detectServiceType } from "@/lib/platform-mapping";
 
@@ -1335,22 +1336,32 @@ export default function ProvidersPage() {
         </div>
 
         {/* ═══ هامش الربح العام ═══ */}
-        <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-gold)]/20 bg-[var(--color-surface)] px-4 py-3">
-          <Activity size={16} className="shrink-0 text-[var(--color-gold-bright)]" />
-          <span className="shrink-0 text-[12px] font-black text-white">قيمة ربح اختيارية</span>
-          <div className="flex flex-1 items-center gap-2">
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={globalMarkup}
-              onChange={(e) => setGlobalMarkup(Number(e.target.value))}
-              className="h-9 w-20 rounded-lg border border-[var(--color-gold)]/30 bg-[var(--color-surface-2)] px-2 text-center text-[12px] font-black text-[var(--color-gold-bright)] outline-none focus:border-[var(--color-gold)]"
-            />
-                          <span className="text-[11px] text-zinc-400">لإضافة خدمات جديدة بهامش، أدخل النسبة ثم اختر «إضافة الكل»؛ ولا تُطبَّق تلقائيًا قبل ذلك.</span>
-
-          </div>
-        </div>
+                <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-gold)]/20 bg-[var(--color-surface)] px-4 py-3">
+                  <Activity size={16} className="shrink-0 text-[var(--color-gold-bright)]" />
+                  <span className="shrink-0 text-[12px] font-black text-white">قيمة ربح اختيارية</span>
+                  <div className="flex flex-1 items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={globalMarkup}
+                      onChange={(e) => setGlobalMarkup(Number(e.target.value))}
+                      className="h-9 w-20 rounded-lg border border-[var(--color-gold)]/30 bg-[var(--color-surface-2)] px-2 text-center text-[12px] font-black text-[var(--color-gold-bright)] outline-none focus:border-[var(--color-gold)]"
+                    />
+                    <span className="text-[11px] text-zinc-400">لإضافة خدمات جديدة بهامش، أدخل النسبة ثم اختر «إضافة الكل»؛ ولا تُطبَّق تلقائيًا قبل ذلك.</span>
+                    <button
+                      onClick={() => {
+                        const p = providers.find(pr => Number(pr.is_active) === 1);
+                        if (p) updateAllProviderServices(p.id, "markup", String(globalMarkup), "provider");
+                      }}
+                      disabled={globalMarkup <= 0 || providers.filter(pr => Number(pr.is_active) === 1).length === 0}
+                      className="flex h-9 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 text-[12px] font-black text-black shadow-[0_0_16px_-6px_rgba(16,185,129,0.5)] transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="تطبيق نسبة الربح هذه على جميع خدمات جميع المزودين المفعّلين"
+                    >
+                      <Save size={14} /> حفظ وتطبيق على الكل
+                    </button>
+                  </div>
+                </div>
 
         {/* ═══ بحث وتصفية المزودين محليًا دون طلبات إضافية ═══ */}
         <div className="rounded-2xl border border-[var(--color-gold)]/20 bg-[var(--color-surface)] p-2.5">
