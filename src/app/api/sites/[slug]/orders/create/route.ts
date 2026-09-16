@@ -149,20 +149,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       throw error;
     }
 
-    // Execute order via FIXED_API_ENDPOINT using branch's API key (GET with key in query)
+    // Execute order via FIXED_API_ENDPOINT using branch's API key
+    // الطريقة الصحيحة (مثل المنصة الرسمية): POST مع key في الـ query string و JSON body
     const providerApiUrl = "https://www.follower4.zone.id/api/v2";
     const branchKeyRow = await db.execute({ sql: "SELECT ak.api_key FROM branch_providers bp JOIN api_keys ak ON ak.user_id = bp.owner_user_id WHERE bp.site_id = ? LIMIT 1", args: [siteId] });
     const branchKey = String(branchKeyRow.rows[0]?.api_key || "");
     const orderUrl = new URL(providerApiUrl);
     orderUrl.searchParams.set("key", branchKey);
-    orderUrl.searchParams.set("action", "add");
-    orderUrl.searchParams.set("service", String(providerService.remote_service_id));
-    orderUrl.searchParams.set("link", String(link));
-    orderUrl.searchParams.set("quantity", String(qty));
 
     const providerRes = await fetch(orderUrl.toString(), {
-      method: "GET",
-      headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0 (Linux; Android 13)" },
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json", "User-Agent": "Mozilla/5.0 (Linux; Android 13)" },
+      body: JSON.stringify({
+        action: "add",
+        service: String(providerService.remote_service_id),
+        link: String(link),
+        quantity: String(qty),
+      }),
       cache: "no-store",
     });
     const providerData = await providerRes.json().catch(() => null);
