@@ -832,6 +832,10 @@ const schemaMigrations: SchemaMigration[] = [
     table: "reseller_sites",
     columns: [
       ["parent_site_id", "INTEGER DEFAULT NULL"],
+      ["suspended_reason", "TEXT"],
+      ["suspended_at", "DATETIME"],
+      ["admin_username", "TEXT"],
+      ["admin_email", "TEXT"],
     ],
   },
   {

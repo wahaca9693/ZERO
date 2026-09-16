@@ -138,8 +138,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: `رصيدك غير كافٍ للاشتراك الشهري (${price.toFixed(2)} ${settings.currency})` }, { status: 409 });
       }
       const inserted = await transaction.execute({
-        sql: `INSERT INTO reseller_sites (owner_user_id, creation_key, slug, display_name, subscription_price, subscription_currency, next_billing_at, theme_json) VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+1 month'), ?)`,
-        args: [session.userId!, creationKey, slug, displayName, price, settings.currency, JSON.stringify({ primaryColor: settings.primaryColor, secondaryColor: settings.secondaryColor })],
+        sql: `INSERT INTO reseller_sites (owner_user_id, creation_key, slug, display_name, subscription_price, subscription_currency, next_billing_at, theme_json, admin_username, admin_email) VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+1 month'), ?, ?, ?)`,
+        args: [session.userId!, creationKey, slug, displayName, price, settings.currency, JSON.stringify({ primaryColor: settings.primaryColor, secondaryColor: settings.secondaryColor }), adminUsername, adminEmail],
       });
       const siteId = Number(inserted.lastInsertRowid);
       const passwordHash = await bcrypt.hash(adminPassword, 12);

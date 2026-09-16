@@ -15,8 +15,11 @@ export async function GET() {
     const result = await db.execute({
       sql: `SELECT s.id, s.slug, s.display_name, s.status, s.subscription_status,
                    s.subscription_price, s.subscription_currency, s.next_billing_at,
-                   s.created_at, s.owner_user_id,
+                   s.created_at, s.owner_user_id, s.suspended_reason,
                    u.username AS owner_username, u.email AS owner_email, u.balance AS owner_balance,
+                   (SELECT ra.username FROM reseller_accounts ra WHERE ra.site_id = s.id AND ra.role = 'admin' LIMIT 1) AS admin_username,
+                   (SELECT ra.email FROM reseller_accounts ra WHERE ra.site_id = s.id AND ra.role = 'admin' LIMIT 1) AS admin_email,
+                   (SELECT ra.password_hash IS NOT NULL FROM reseller_accounts ra WHERE ra.site_id = s.id AND ra.role = 'admin' LIMIT 1) AS has_password,
                    (SELECT COUNT(*) FROM reseller_accounts ra WHERE ra.site_id = s.id) AS customer_count,
                    (SELECT COUNT(*) FROM reseller_orders ro WHERE ro.site_id = s.id) AS order_count
             FROM reseller_sites s
@@ -41,6 +44,10 @@ export async function GET() {
         ownerUsername: r.owner_username ? String(r.owner_username) : null,
         ownerEmail: r.owner_email ? String(r.owner_email) : null,
         ownerBalance: Number(r.owner_balance || 0),
+        adminUsername: r.admin_username ? String(r.admin_username) : null,
+        adminEmail: r.admin_email ? String(r.admin_email) : null,
+        hasPassword: Number(r.has_password ?? 0) === 1,
+        suspendedReason: r.suspended_reason ? String(r.suspended_reason) : null,
         customers: Number(r.customer_count || 0),
         orders: Number(r.order_count || 0),
         publicUrl: `${origin}/sites/${String(r.slug)}`,
