@@ -24,7 +24,7 @@ const platformKeywords: Record<string, string[]> = {
   twitch: ["twitch", "تويتش"],
   spotify: ["spotify", "سبوتيفاي"],
   dribbble: ["dribbble", "dribble", "دريبل"],
-  threads: ["threads", "ثريدز"],
+  threads: ["threads", "ثريدز", "ثربدز", "ثردز"],
   kuaishou: ["kuaishou", "كواي"],
   likee: ["likee", "لايكي", "كيك"],
 };
@@ -97,6 +97,12 @@ const platformVariantSuffixes = new Set([
   "cheapest", "server", "usa", "fast", "hq", "premium", "bot", "targeted",
   "real", "germany", "india", "turkey", "uk", "group", "reposts", "streams",
   "stream", "chat", "com", "amp", "voom",
+]);
+
+// أدوات/تطبيقات ليست منصات تواصل اجتماعي معروفة — تُصنف ضمن "أخرى"
+const otherPlatformWords = new Set([
+  "شحن", "شدات", "شوبي", "shopee", "زيارات", "زوراء", "visits", "visit",
+  "subscribers-views", "apps", "تطبيق", "تطبيقات",
 ]);
 
 const platformAliases: Record<string, string> = {
@@ -181,7 +187,13 @@ function inferPlatformFromCategory(category: string): string | null {
 
   if (tokens.length === 0) return null;
   const candidate = normalizePlatformId(tokens.slice(0, 2).join("-"));
-  return candidate === "other" ? null : candidate;
+  if (candidate === "other") return null;
+  // أدوات/تطبيقات غير معروفة — تُصنف ضمن "أخرى" بدل أن تضيع في no-man's land
+  const normalizedCandidate = normalizeText(candidate);
+  for (const word of otherPlatformWords) {
+    if (normalizedCandidate.includes(normalizeText(word))) return "other";
+  }
+  return candidate;
 }
 
 export function detectPlatform(category: string, serviceName: string): string {
