@@ -268,9 +268,62 @@ export async function adminLogin(phone: string): Promise<{ success: boolean; mes
   return { success: true, message: stringField(data, "message") || "تم إرسال رمز التحقق" };
 }
 
-export async function adminVerify(otp: string): Promise<{ success: boolean; message?: string; error?: string }> {
-  const admin = await getAdminRow();
-  if (!admin) return { success: false, error: "قم بتسجيل الدخول أولاً" };
+/**
+ * نسخة adminLogin خاصة بفرع (reseller site): تحفظ في reseller_asiacell_admin
+ * بدل الجدول العام حتى لا تتعارض الفروع مع بعضها.
+ */
+export async function adminLoginForSite(
+  siteId: number,
+  phone: string
+): Promise<{ success: boolean; sessionId?: string; message?: string; error?: string }> {
+  const clean = cleanPhone(phone);
+  if (!/^07\d{9}$/.test(clean)) {
+    return { success: false, error: "رقم آسياسيل يجب أن يكون 07XXXXXXXXX" };
+  }
+
+  // إنشاء رقم جلسة داخلي للفرع حتى لا نحتاج للجدول العام
+  const sessionId = randomUUID();
+  await setSiteAdminRow(siteId, {
+    phone: clean,
+    device_id: "",
+    access_token: "",
+    pid: "",
+    store_phone: clean,
+    authenticated: 0,
+    session_id: sessionId,
+  });
+
+  const deviceId = randomUUID();
+  const { json: data } = await retryAsiacellFetch(
+    `${AC_API}/api/v1/login?lang=ar`,
+    { method: "POST", body: JSON.stringify({ captchaCode: "", username: clean }) },
+    loginHeaders(deviceId)
+  );
+
+  if (!data) {
+    // لا نحذف الجلسة — نعيد محاولة الـ login بالتأكيد
+    await setSiteAdminRow(siteId, { device_id: deviceId, pid: "" });
+    return { success: false, error: "رد غير متوقع من Asiacell - حاول مرة أخرى" };
+  }
+
+  const pidMatch = stringField(data, "nextUrl").match(/PID=([^&]+)/);
+  const pid = pidMatch ? pidMatch[1] : "";
+  await setSiteAdminRow(siteId, { device_id: deviceId, pid });
+
+  return { success: true, sessionId, message: stringField(data, "message") || "تم إرسال رمز التحقق" };
+}
+
+/**
+ * نسخة adminVerify خاصة بفرع: تقرأ device_id/pid من reseller_asiacell_admin.
+ */
+export async function adminVerifyForSite(
+  siteId: number,
+  otp: string
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  const admin = await getSiteAdminRow(siteId);
+  if (!admin || !admin.device_id || !admin.pid) {
+    return { success: false, error: "قم بإرسال رمز التحقق أولاً" };
+  }
 
   const { json: data } = await retryAsiacellFetch(
     `${AC_API}/api/v1/smsvalidation?lang=ar`,
@@ -279,16 +332,76 @@ export async function adminVerify(otp: string): Promise<{ success: boolean; mess
   );
 
   if (!data) {
-    debugAsiacell("Admin verification returned non-JSON response");
+    debugAsiacell("Admin site verification returned non-JSON response");
     return { success: false, error: "رد غير متوقع من Asiacell" };
   }
 
   const accessToken = stringField(data, "access_token");
   if (accessToken) {
-    await setAdminRow({ access_token: accessToken, authenticated: 1 });
+    await setSiteAdminRow(siteId, { access_token: accessToken, authenticated: 1 });
     return { success: true, message: "تم ربط البوابة بنجاح" };
   }
   return { success: false, message: stringField(data, "message") || "رمز التحقق غير صحيح" };
+}
+
+/**
+ * الحصول على صف إدارة آسياسيل الخاص بفرع (siteId).
+ */
+export async function getSiteAdminRow(siteId: number): Promise<(AdminSession & { session_id?: string }) | null> {
+  const result = await db.execute({
+    sql: "SELECT * FROM reseller_asiacell_admin WHERE site_id = ? LIMIT 1",
+    args: [siteId],
+  });
+  const row = result.rows[0] as JsonRecord | undefined;
+  if (!row) return null;
+  return {
+    ...row,
+    id: Number(row.id),
+    authenticated: Number(row.authenticated),
+    exchange_rate: Number(row.exchange_rate),
+    session_id: row.session_id ? String(row.session_id) : undefined,
+  } as unknown as AdminSession & { session_id?: string };
+}
+
+/**
+ * حفظ صف إدارة آسياسيل الخاص بفرع (siteId).
+ */
+export async function setSiteAdminRow(siteId: number, data: Partial<AdminSession> & { session_id?: string }): Promise<void> {
+  const existing = await getSiteAdminRow(siteId);
+  if (!existing) {
+    await db.execute({
+      sql: `INSERT INTO reseller_asiacell_admin (site_id, phone, device_id, access_token, pid, authenticated, exchange_rate, store_phone)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        siteId,
+        data.phone || "",
+        data.device_id || "",
+        data.access_token || "",
+        data.pid || "",
+        data.authenticated ? 1 : 0,
+        data.exchange_rate ? Number(data.exchange_rate) : 1666,
+        data.store_phone || data.phone || "",
+      ],
+    });
+    return;
+  }
+  const fields: string[] = [];
+  const values: Array<string | number | null> = [];
+  for (const [key, value] of Object.entries(data)) {
+    if (value === undefined || key === "id" || key === "site_id") continue;
+    if (key === "session_id") {
+      // session_id غير موجود في الجدول — نتجاوزه (سنضيفه كمخزّن اختياري في phone أو عبر جدول مؤقت)
+      continue;
+    }
+    fields.push(`${key} = ?`);
+    values.push(typeof value === "number" ? value : String(value));
+  }
+  if (fields.length === 0) return;
+  values.push(siteId);
+  await db.execute({
+    sql: `UPDATE reseller_asiacell_admin SET ${fields.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE site_id = ?`,
+    args: values,
+  });
 }
 
 export async function adminLogout(): Promise<void> {

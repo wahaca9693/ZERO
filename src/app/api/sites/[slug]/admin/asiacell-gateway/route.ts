@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
-import { db, initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireResellerAdmin } from "@/lib/reseller-auth";
-import { adminLogin, adminVerify, adminLogout, cleanPhone, checkRecordsAndCredit } from "@/lib/asiacell-gateway";
+import {
+  adminLoginForSite,
+  adminVerifyForSite,
+  adminLogout,
+  cleanPhone,
+  checkRecordsAndCredit,
+  getSiteAdminRow,
+  setSiteAdminRow,
+} from "@/lib/asiacell-gateway";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -23,58 +31,8 @@ function authStatus(error: unknown): number {
   return 500;
 }
 
-// Reseller-scoped admin row read/write instead of the global asiacell_admin
-async function getSiteAdminRow(siteId: number) {
-  const result = await db.execute({
-    sql: "SELECT * FROM reseller_asiacell_admin WHERE site_id = ? LIMIT 1",
-    args: [siteId],
-  });
-  const row = result.rows[0] as unknown as Record<string, unknown> | undefined;
-  if (!row) return null;
-  return {
-    ...row,
-    id: Number(row.id),
-    phone: row.phone ? String(row.phone) : "",
-    authenticated: Number(row.authenticated),
-    exchange_rate: Number(row.exchange_rate),
-    store_phone: row.store_phone ? String(row.store_phone) : "",
-  };
-}
-
-async function setSiteAdminRow(siteId: number, data: Record<string, unknown>): Promise<void> {
-  const existing = await getSiteAdminRow(siteId);
-  if (!existing) {
-    await db.execute({
-      sql: `INSERT INTO reseller_asiacell_admin (site_id, phone, device_id, access_token, pid, authenticated, exchange_rate, store_phone)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [
-        siteId,
-        data.phone ? String(data.phone) : "",
-        data.device_id ? String(data.device_id) : "",
-        data.access_token ? String(data.access_token) : "",
-        data.pid ? String(data.pid) : "",
-        data.authenticated ? 1 : 0,
-        data.exchange_rate ? Number(data.exchange_rate) : 1666,
-        data.store_phone ? String(data.store_phone) : "",
-      ],
-    });
-    return;
-  }
-  const updates: string[] = [];
-  const args: Array<string | number> = [];
-  for (const [key, value] of Object.entries(data)) {
-    if (key === "id" || key === "site_id") continue;
-    updates.push(`${key} = ?`);
-    args.push(typeof value === "number" ? value : String(value));
-  }
-  if (updates.length === 0) return;
-  updates.push("updated_at = CURRENT_TIMESTAMP");
-  args.push(siteId);
-  await db.execute({
-    sql: `UPDATE reseller_asiacell_admin SET ${updates.join(", ")} WHERE site_id = ?`,
-    args,
-  });
-}
+// Reseller-scoped admin row read/write is now in @/lib/asiacell-gateway
+// (getSiteAdminRow / setSiteAdminRow)
 
 export async function GET(_request: Request, { params }: Params) {
   try {
@@ -105,37 +63,12 @@ export async function POST(request: Request, { params }: Params) {
     const action = body.action;
 
     if (action === "login") {
-      const result = await adminLogin(typeof body.phone === "string" ? body.phone : "");
-      if (result.success) {
-        // Store the phone on the site row immediately (device/token stored by global login)
-        const globalRow = await db.execute({
-          sql: "SELECT device_id, pid FROM asiacell_admin WHERE id = 1",
-        });
-        const g = globalRow.rows[0] as unknown as Record<string, unknown> | undefined;
-        await setSiteAdminRow(siteId, {
-          phone: typeof body.phone === "string" ? cleanPhone(body.phone) : "",
-          device_id: g?.device_id || "",
-          pid: g?.pid || "",
-          authenticated: 0,
-        });
-      }
+      const result = await adminLoginForSite(siteId, typeof body.phone === "string" ? body.phone : "");
       return NextResponse.json(result);
     }
 
     if (action === "verify") {
-      const result = await adminVerify(typeof body.otp === "string" ? body.otp : "");
-      if (result.success) {
-        const globalRow = await db.execute({
-          sql: "SELECT device_id, access_token, pid, authenticated FROM asiacell_admin WHERE id = 1",
-        });
-        const g = globalRow.rows[0] as unknown as Record<string, unknown> | undefined;
-        await setSiteAdminRow(siteId, {
-          device_id: g?.device_id || "",
-          access_token: g?.access_token || "",
-          pid: g?.pid || "",
-          authenticated: g?.authenticated ? 1 : 0,
-        });
-      }
+      const result = await adminVerifyForSite(siteId, typeof body.otp === "string" ? body.otp : "");
       return NextResponse.json(result);
     }
 

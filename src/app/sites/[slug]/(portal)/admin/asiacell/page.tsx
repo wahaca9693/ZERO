@@ -20,7 +20,6 @@ export default function AsiacellAdminPage({ slug, siteName }: Props) {
   const [step, setStep] = useState<"idle" | "otp" | "ready">("idle");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
-  const [sessionId, setSessionId] = useState<string | null>(null);
 
   const [loadingAction, setLoadingAction] = useState(false);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
@@ -28,12 +27,11 @@ export default function AsiacellAdminPage({ slug, siteName }: Props) {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch(`${base}/payments/asiacell`, { cache: "no-store" });
+      const res = await fetch(`${base}/admin/asiacell-gateway`, { cache: "no-store" });
       const data = await res.json();
       if (data.store_phone) setStorePhone(data.store_phone);
       if (data.exchange_rate) setExchangeRate(data.exchange_rate);
-      setConnected(data.connected || data.admin_connected);
-      if (data.authenticated !== undefined) setConnected(data.authenticated);
+      setConnected(data.authenticated || data.connected || false);
     } catch {}
     finally { setLoading(false); }
   }, [base]);
@@ -43,7 +41,7 @@ export default function AsiacellAdminPage({ slug, siteName }: Props) {
   const call = async (body: Record<string, unknown>) => {
     setLoadingAction(true); setActionErr(null); setActionMsg(null);
     try {
-      const res = await fetch(`${base}/payments/asiacell`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const res = await fetch(`${base}/admin/asiacell-gateway`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok || data.error) { throw new Error(data.error || "فشلت العملية"); }
       return data;
@@ -69,14 +67,16 @@ export default function AsiacellAdminPage({ slug, siteName }: Props) {
     if (!phone.trim()) { setActionErr("أدخل رقم آسياسيل"); return; }
     try {
       const data = await call({ action: "login", phone: phone.trim() });
-      if (data.sessionId) { setStep("otp"); setActionMsg("أدخل رمز التحقق المرسل إلى رقمك"); }
+      if (data.error) throw new Error(data.error);
+      setStep("otp"); setActionMsg("أدخل رمز التحقق المرسل إلى رقمك");
     } catch (e) { setActionErr(e instanceof Error ? e.message : "فشل بدء الربط"); }
   };
   const verifyOtp = async () => {
     if (!otp.trim()) { setActionErr("أدخل رمز التحقق"); return; }
     try {
-      const data = await call({ action: "verify-otp", sessionId, otp: otp.trim() });
-      if (data.success) { setStep("ready"); setActionMsg("تم الربط بنجاح!"); }
+      const data = await call({ action: "verify", otp: otp.trim() });
+      if (data.error) throw new Error(data.error);
+      if (data.success) { setStep("ready"); setActionMsg("تم الربط بنجاح!"); await refresh(); }
     } catch (e) { setActionErr(e instanceof Error ? e.message : "فشل التحقق"); }
   };
 
