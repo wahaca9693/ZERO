@@ -302,7 +302,19 @@ export async function GET(request: Request) {
             FROM providers ORDER BY id DESC`,
       args: [],
     });
-    return NextResponse.json({ providers: rows.rows });
+    // قراءة نسبة الربح الافتراضية المحفوظة (قد لا يكون العمود موجودًا في بعض القواعد القديمة)
+    let defaultMarkup = 0;
+    try {
+      const settings = await db.execute({ sql: `SELECT default_markup_percent FROM site_settings WHERE id='default'`, args: [] });
+      const setting = settings.rows[0] as { default_markup_percent?: unknown } | undefined;
+      if (setting && setting.default_markup_percent !== null && setting.default_markup_percent !== undefined) {
+        const parsed = Number(setting.default_markup_percent);
+        if (Number.isFinite(parsed)) defaultMarkup = parsed;
+      }
+    } catch {
+      // العمود غير موجود — نستخدم 0
+    }
+    return NextResponse.json({ providers: rows.rows, default_markup_percent: defaultMarkup });
   } catch (err: unknown) {
     const status = authErrorStatus(err);
     return NextResponse.json({ error: status >= 500 ? "تعذر تحميل بيانات المزودين حاليًا" : status === 401 ? "غير مصرح" : "ممنوع" }, { status });
@@ -740,6 +752,17 @@ export async function POST(request: Request) {
         sql: `UPDATE provider_services SET markup_percent=?, pricing_mode=?, manual_price=?, sell_rate=CASE WHEN ? = 'manual' THEN ? ELSE ROUND(rate * (1 + ? / 100), 6) END, updated_at=CURRENT_TIMESTAMP ${where}`,
         args,
       });
+      // حفظ نسبة الربح الافتراضية في site_settings لتبقى بعد إعادة تحميل الصفحة
+      if (scope === "provider" && pricing.mode === "markup") {
+        try {
+          await db.execute({
+            sql: `UPDATE site_settings SET default_markup_percent=?, updated_at=CURRENT_TIMESTAMP WHERE id='default'`,
+            args: [pricing.markup],
+          });
+        } catch {
+          // العمود غير موجود أو جدول الإعدادات مختلف — نتجاهل بصمت كي لا نفشل العملية الأساسية
+        }
+      }
       invalidateProviderCatalogCaches();
       return NextResponse.json({ ok: true, updated: Number((result as { rowsAffected?: number }).rowsAffected || 0), scope, pricing_mode: pricing.mode, manual_price: pricing.manual });
     }

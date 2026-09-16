@@ -723,6 +723,9 @@ export default function ProvidersPage() {
       ]);
       if (requestId !== loadRequestRef.current) return;
       setProviders(providerData.providers || []);
+      if (typeof providerData.default_markup_percent === "number") {
+        setGlobalMarkup(providerData.default_markup_percent);
+      }
       const counts: Record<number, number> = {};
       const nextServiceStats: Record<number, { total: number; active: number; paused: number }> = {};
       for (const row of statsData.stats || []) {
@@ -994,7 +997,7 @@ export default function ProvidersPage() {
     }
   };
 
-  const updateAllProviderServices = async (providerId: number, mode: "markup" | "manual" = "markup", value = String(globalMarkup), scope: "provider" | "category" | "selected" = "provider", ids: number[] = [], category?: string) => {
+  const updateAllProviderServices = async (providerId: number, mode: "markup" | "manual" = "markup", value = String(globalMarkup), scope: "provider" | "category" | "selected" = "provider", ids: number[] = [], category?: string): Promise<number | undefined> => {
     const numeric = Number(value);
     if (!Number.isFinite(numeric) || numeric < 0) { setResult({ error: mode === "manual" ? "أدخل سعرًا مباشرًا صالحًا" : "أدخل نسبة ربح صالحة" }); return; }
     const res = await fetch("/api/admin/providers", {
@@ -1017,8 +1020,9 @@ export default function ProvidersPage() {
         }
         return { ...service, pricing_mode: "markup", markup_percent: numeric, manual_price: null, sell_rate: Math.round(Number(service.rate) * (1 + numeric / 100) * 1_000_000) / 1_000_000 };
       }));
-      setResult({ message: mode === "manual" ? `تم تطبيق سعر بيع مباشر $${numeric.toFixed(6)} على النطاق المحدد` : `تم تطبيق هامش ${numeric}% على النطاق المحدد` });
-    } else setResult({ error: data.error || "تعذر تحديث الأسعار" });
+      if (scope !== "provider" || mode !== "markup") setResult({ message: mode === "manual" ? `تم تطبيق سعر بيع مباشر $${numeric.toFixed(6)} على النطاق المحدد` : `تم تطبيق هامش ${numeric}% على النطاق المحدد` });
+      return Number(data.updated ?? 0);
+    } else { setResult({ error: data.error || "تعذر تحديث الأسعار" }); return 0; }
   };
 
   const resetProviderPricing = async (providerId: number, scope: "provider" | "category" | "selected", ids: number[] = [], category?: string) => {
@@ -1353,9 +1357,13 @@ export default function ProvidersPage() {
                       onClick={async () => {
                         const activeProviders = providers.filter(pr => Number(pr.is_active) === 1);
                         if (activeProviders.length === 0) return;
+                        setResult({ message: "جاري تطبيق نسبة الربح على جميع الخدمات..." });
+                        let total = 0;
                         for (const p of activeProviders) {
-                          await updateAllProviderServices(p.id, "markup", String(globalMarkup), "provider");
+                          const n = await updateAllProviderServices(p.id, "markup", String(globalMarkup), "provider");
+                          total += n || 0;
                         }
+                        setResult({ message: `تم تطبيق نسبة الربح ${globalMarkup}% على ${total} خدمة وحفظها` });
                       }}
                       disabled={globalMarkup <= 0 || providers.filter(pr => Number(pr.is_active) === 1).length === 0}
                       className="flex h-9 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 text-[12px] font-black text-black shadow-[0_0_16px_-6px_rgba(16,185,129,0.5)] transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
