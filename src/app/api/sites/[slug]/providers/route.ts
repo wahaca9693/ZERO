@@ -265,7 +265,7 @@ export async function POST(request: Request, { params }: Params) {
 
     const insert = await db.execute({
       sql: "INSERT INTO branch_providers (site_id, name, api_endpoint, api_key, owner_user_id) VALUES (?, ?, ?, ?, ?)",
-      args: [siteId, name.trim(), endpoint, trimmedKey, 0],
+      args: [siteId, name.trim(), endpoint, trimmedKey, auth.account.id],
     });
     const providerId = Number(insert.lastInsertRowid);
 
