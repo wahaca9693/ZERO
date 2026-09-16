@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import DashboardLayout from "../../../../components/DashboardLayout";
+import DashboardLayout from "@/components/DashboardLayout";
 import { Smartphone, Save, Loader2, RefreshCw, KeyRound, AlertCircle, Zap, CheckCircle2 } from "lucide-react";
 
 type Props = { slug: string; siteName: string };
