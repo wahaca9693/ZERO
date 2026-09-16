@@ -7,6 +7,60 @@ type Params = { params: Promise<{ slug: string }> };
 
 const DEFAULT_ENDPOINT = "https://www.follower4.zone.id/api/v2";
 
+// --- Smart Key Validation ---
+function validateApiKey(key: string): { valid: boolean; error?: string; normalized?: string } {
+  const trimmed = key.trim();
+  
+  if (!trimmed) {
+    return { valid: false, error: "مفتاح API مطلوب — لا تترك الحقل فارغاً" };
+  }
+  
+  // Check for common external platform patterns
+  if (trimmed.startsWith("smm-") && trimmed.length < 20) {
+    return { 
+      valid: false, 
+      error: "❌ هذا المفتاح يبدو من منصة خارجية (smmnine/smmonly) — استخدم مفتاح منصتنا فقط. انسخ المفتاح من لوحة إدارة حسابك في follower4.zone.id" 
+    };
+  }
+  
+  // Our keys are long (smm- + 40+ chars)
+  if (!trimmed.startsWith("smm-") || trimmed.length < 40) {
+    return { 
+      valid: false, 
+      error: "⚠️ صيغة المفتاح غير صحيحة — مفاتيح منصتنا تبدأ بـ 'smm-' وتكون 45+ حرف. تأكد من النسخ الكامل من لوحة الإدارة." 
+    };
+  }
+  
+  return { valid: true, normalized: trimmed };
+}
+
+async function checkKeyOwnership(key: string, currentUserId: number): Promise<{ ok: boolean; error?: string; ownerId?: number }> {
+  const resolved = await resolveApiKey(key);
+  if (!resolved) {
+    return { ok: false, error: "❌ مفتاح API غير صالح أو غير نشط — هذا المفتاح غير مسجل في منصتنا أو تم تعطيله." };
+  }
+  
+  if (resolved.userId !== currentUserId) {
+    // Get owner username for helpful message
+    const ownerResult = await db.execute({
+      sql: "SELECT username FROM users WHERE id = ?",
+      args: [resolved.userId],
+    });
+    const ownerName = ownerResult.rows[0] ? String(ownerResult.rows[0].username || `المستخدم #${resolved.userId}`) : `المستخدم #${resolved.userId}`;
+    
+    return { 
+      ok: false, 
+      error: `🔒 هذا المفتاح يخص حساب آخر: "${ownerName}". كل فرع يجب أن يستخدم مفتاح صاحبه فقط. احصل على مفتاحك من لوحة الإدارة > مفاتيح API.` 
+    };
+  }
+  
+  return { ok: true, ownerId: resolved.userId };
+}
+
+// --- Main Provider API ---
+type Params = { params: Promise<{ slug: string }> };
+const DEFAULT_ENDPOINT = "https://www.follower4.zone.id/api/v2";
+
 type ProviderRow = {
   id: number;
   site_id: number;
@@ -24,7 +78,6 @@ export async function GET(_request: Request, { params }: Params) {
     const auth = await requireResellerAdmin(slug);
     const siteId = Number(auth.account.site_id);
 
-    // If provider_id is specified, return services for that provider
     const url = new URL(_request.url);
     const providerId = Number(url.searchParams.get("provider_id") || 0);
     if (providerId > 0) {
@@ -57,9 +110,7 @@ export async function GET(_request: Request, { params }: Params) {
       is_active: Number(p.is_active),
     }));
 
-    // Include masked key display and endpoint for the main provider
-    const providerCount = providers.length;
-    return NextResponse.json({ providers, count: providerCount });
+    return NextResponse.json({ providers, count: providers.length });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     return NextResponse.json({ error: message }, { status: message === "Forbidden" ? 403 : 401 });
@@ -72,6 +123,7 @@ export async function POST(request: Request, { params }: Params) {
     await initDb();
     const auth = await requireResellerAdmin(slug);
     const siteId = Number(auth.account.site_id);
+    const currentUserId = auth.account.id;
 
     const body = await request.json();
     const { name, api_endpoint, api_key, action, provider_id, service_id, hidden } = body as {
@@ -84,7 +136,7 @@ export async function POST(request: Request, { params }: Params) {
       hidden?: boolean;
     };
 
-    // Action: toggle provider on/off
+    // --- Actions ---
     if (action === "toggle" && provider_id) {
       const prov = await db.execute({
         sql: "SELECT is_active FROM branch_providers WHERE id = ? AND site_id = ?",
@@ -99,7 +151,6 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ success: true, is_active: newState });
     }
 
-    // Action: delete provider
     if (action === "delete" && provider_id) {
       await db.execute({
         sql: "DELETE FROM branch_providers WHERE id = ? AND site_id = ?",
@@ -108,7 +159,6 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ success: true, message: "تم حذف المزود وخدماته" });
     }
 
-    // Action: hide/unhide a service
     if (action === "hide" && provider_id && service_id) {
       const hiddenState = hidden ? 1 : 0;
       await db.execute({
@@ -118,7 +168,6 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ success: true, is_hidden: hiddenState });
     }
 
-    // Action: refresh services from provider
     if (action === "refresh" && provider_id) {
       const prov = await db.execute({
         sql: "SELECT api_endpoint, api_key FROM branch_providers WHERE id = ? AND site_id = ?",
@@ -130,37 +179,48 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ success: true, message: "تم تحديث الخدمات" });
     }
 
-    // Default: add a new provider
-    if (!name || !api_key) {
-      return NextResponse.json({ error: "اسم المزود والمفتاح مطلوبان" }, { status: 400 });
+    // --- Add New Provider (with smart validation) ---
+    if (!name || !name.trim()) {
+      return NextResponse.json({ error: "❌ اسم المزود مطلوب — اكتب اسماً مميزاً للمزود (مثال: المزود الرئيسي)" }, { status: 400 });
     }
 
-    // Validate the API key via official resolver
-    const resolved = await resolveApiKey(api_key.trim());
-    if (!resolved) {
-      return NextResponse.json({ error: "مفتاح API غير صالح أو غير نشط", connected: false }, { status: 400 });
+    const keyValidation = validateApiKey(api_key || "");
+    if (!keyValidation.valid) {
+      return NextResponse.json({ error: keyValidation.error, connected: false }, { status: 400 });
+    }
+
+    const ownershipCheck = await checkKeyOwnership(keyValidation.normalized!, currentUserId);
+    if (!ownershipCheck.ok) {
+      return NextResponse.json({ error: ownershipCheck.error, connected: false }, { status: 403 });
     }
 
     const endpoint = (api_endpoint || DEFAULT_ENDPOINT).trim();
     const insert = await db.execute({
       sql: "INSERT INTO branch_providers (site_id, name, api_endpoint, api_key, owner_user_id) VALUES (?, ?, ?, ?, ?)",
-      args: [siteId, name.trim(), endpoint, api_key.trim(), resolved.userId],
+      args: [siteId, name.trim(), endpoint, keyValidation.normalized!, ownershipCheck.ownerId],
     });
     const providerId = Number(insert.lastInsertRowid);
 
-    // Immediately sync services
-    await syncProviderServices(providerId, endpoint, api_key.trim());
+    await syncProviderServices(providerId, endpoint, keyValidation.normalized!);
 
     return NextResponse.json({
       success: true,
       connected: true,
       provider_id: providerId,
-      message: "تم ربط المزود وجلب خدماته بنجاح",
+      message: "✅ تم ربط المزود بنجاح وجلب جميع خدماته (" + (await getServiceCount(providerId)) + " خدمة)",
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     return NextResponse.json({ error: message, connected: false }, { status: 500 });
   }
+}
+
+async function getServiceCount(providerId: number): Promise<number> {
+  const result = await db.execute({
+    sql: "SELECT COUNT(*) as c FROM branch_provider_services WHERE provider_id = ? AND is_hidden = 0",
+    args: [providerId],
+  });
+  return Number((result.rows[0] as unknown as { c: number }).c || 0);
 }
 
 async function syncProviderServices(providerId: number, apiEndpoint: string, apiKey: string): Promise<number> {
@@ -179,10 +239,9 @@ async function syncProviderServices(providerId: number, apiEndpoint: string, api
   const servicesList = Array.isArray(rawList) ? (rawList as Array<Record<string, unknown>>) : null;
 
   if (!res.ok || !servicesList) {
-    throw new Error("تعذر جلب الخدمات من المزود");
+    throw new Error("تعذر جلب الخدمات من المزود — تأكد من صحة المفتاح وصلاحية endpoint");
   }
 
-  // Upsert each service
   await db.batch(
     servicesList.map((svc) => ({
       sql: `INSERT INTO branch_provider_services (provider_id, remote_service_id, name, name_ar, description, rate, min, max, category, type)
