@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "../components/DashboardLayout";
 import { useTheme } from "../components/ThemeProvider";
-import { CheckCircle2, CircleHelp, ChevronDown, Globe2, ListChecks, Loader2, Plus, WalletCards, XCircle, ExternalLink } from "lucide-react";
+import { CheckCircle2, CircleHelp, ChevronDown, Globe2, ListChecks, Loader2, Plus, WalletCards, XCircle, ExternalLink, Settings } from "lucide-react";
 
 type FaqItem = { q: string; a: string };
 type SiteSettings = { enabled: boolean; monthlyPrice: number; currency: string; title: string; description: string; features: string[]; terms: string[]; faq: FaqItem[]; primaryColor: string; secondaryColor: string };
