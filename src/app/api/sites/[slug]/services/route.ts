@@ -46,12 +46,12 @@ export async function GET(_request: Request, { params }: Params) {
     const auth = await requireResellerAdmin(slug);
     const siteId = Number(auth.account.site_id);
 
-    // Get all active providers for this site
+    // Get all active providers for this site (with their markup)
     const provResult = await db.execute({
-      sql: "SELECT id, name FROM branch_providers WHERE site_id = ? AND is_active = 1 ORDER BY id",
+      sql: "SELECT id, name, markup_percent FROM branch_providers WHERE site_id = ? AND is_active = 1 ORDER BY id",
       args: [siteId],
     });
-    const providers = provResult.rows as unknown as Array<{ id: number; name: string }>;
+    const providers = provResult.rows as unknown as Array<{ id: number; name: string; markup_percent?: number | null }>;
 
     // If no active providers: fallback to main official catalog
     if (providers.length === 0) {
@@ -76,9 +76,11 @@ export async function GET(_request: Request, { params }: Params) {
       return NextResponse.json({ services, categories, platforms: buildPlatformOptions(customPlatforms), count: services.length });
     }
 
-    // Collect services from all active providers (not hidden)
+    // Collect services from all active providers (not hidden) — with markup applied to rates
     const allServices: Array<Record<string, unknown>> = [];
     for (const prov of providers) {
+      const markup = Number(prov.markup_percent || 0);
+      const markupFactor = 1 + markup / 100;
       const svcResult = await db.execute({
         sql: "SELECT remote_service_id, name, name_ar, description, rate, min, max, category, type FROM branch_provider_services WHERE provider_id = ? AND is_hidden = 0 ORDER BY category, name",
         args: [prov.id],
@@ -95,7 +97,9 @@ export async function GET(_request: Request, { params }: Params) {
           descriptionAr: String(row.description_ar || row.description || ""),
           category,
           categoryAr: category,
-          rate: Number(row.rate),
+          // السعر للمستخدم = سعر المزود × (1 + نسبة الربح/100)
+          rate: Number(row.rate) * markupFactor,
+          baseRate: Number(row.rate),
           min: Number(row.min),
           max: Number(row.max),
           // المنصة تُشتق تلقائياً من اسم الخدمة وفئتها — تماماً مثل المنصة الرسمية

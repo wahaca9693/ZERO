@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { db, initDb } from "@/lib/db";
-import { sessionOptions, type SessionUser } from "@/lib/session";
+import { sessionOptions, siteSessionOptions, type SessionUser } from "@/lib/session";
 import { getIronSession } from "iron-session";
 
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params;
     const cookieStore = await cookies();
-    const session = await getIronSession<SessionUser>(cookieStore, sessionOptions);
+    const session = await getIronSession<SessionUser>(cookieStore, siteSessionOptions(slug));
     if (!session.userId || session.siteSlug !== slug) {
       return NextResponse.json({ authenticated: false }, { status: 401 });
     }

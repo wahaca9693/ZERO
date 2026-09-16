@@ -23,10 +23,19 @@ export async function GET(_request: Request, { params }: Params) {
     const theme = JSON.parse(String(row.theme_json || "{}"));
     const paymentMethods = JSON.parse(String(row.payment_methods_json || "[]"));
 
+    // نسبة الربح الحالية (من أول مزود نشط — عادةً المزود الرسمي للفرع)
+    const provResult = await db.execute({
+      sql: "SELECT markup_percent FROM branch_providers WHERE site_id = ? AND is_active = 1 ORDER BY id LIMIT 1",
+      args: [siteId],
+    });
+    const provRow = provResult.rows[0] as Record<string, unknown> | undefined;
+    const markupPercent = provRow ? Number(provRow.markup_percent || 0) : 0;
+
     return NextResponse.json({
       theme,
       paymentMethods,
       providerAccessEnabled: Number(row.provider_access_enabled) === 1,
+      markupPercent,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unexpected error";
@@ -42,14 +51,18 @@ export async function POST(request: Request, { params }: Params) {
     const siteId = Number(auth.account.site_id);
 
     const body = await request.json();
-    const { theme, paymentMethods, providerAccessEnabled } = body as {
+    const { theme, paymentMethods, providerAccessEnabled, markupPercent } = body as {
       theme?: Record<string, unknown>;
       paymentMethods?: PaymentMethod[];
       providerAccessEnabled?: boolean;
+      markupPercent?: number;
     };
 
     if (paymentMethods !== undefined && !Array.isArray(paymentMethods)) {
       return NextResponse.json({ error: "paymentMethods يجب أن يكون مصفوفة" }, { status: 400 });
+    }
+    if (markupPercent !== undefined && (!Number.isFinite(markupPercent) || markupPercent < 0 || markupPercent > 10000)) {
+      return NextResponse.json({ error: "نسبة الربح يجب أن تكون بين 0 و 10000" }, { status: 400 });
     }
 
     const current = await db.execute({
@@ -73,6 +86,14 @@ export async function POST(request: Request, { params }: Params) {
       sql: "UPDATE reseller_sites SET theme_json = ?, payment_methods_json = ?, provider_access_enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
       args: [JSON.stringify(mergedTheme), JSON.stringify(mergedMethods), providerAccessEnabled === true ? 1 : 0, siteId],
     });
+
+    // تطبيق نسبة الربح على جميع مزودات الفرع النشطة
+    if (markupPercent !== undefined) {
+      await db.execute({
+        sql: "UPDATE branch_providers SET markup_percent = ?, updated_at = CURRENT_TIMESTAMP WHERE site_id = ? AND is_active = 1",
+        args: [markupPercent, siteId],
+      });
+    }
 
     // Audit: record the change
     await db.execute({

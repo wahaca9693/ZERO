@@ -1,6 +1,6 @@
 import { getIronSession } from "iron-session";
 import { cookies } from "next/headers";
-import { sessionOptions, type SessionUser } from "./session-config";
+import { sessionOptions, siteSessionOptions, type SessionUser } from "./session-config";
 
 // Node-runtime only helpers (API routes). Middleware must NOT import this file;
 // it imports session-config.ts directly instead.
@@ -8,12 +8,16 @@ export type { SessionUser } from "./session-config";
 
 /**
  * Reads the iron-session session from the request cookies.
+ * Also refreshes (slides) the session expiry on every successful read,
+ * so an active user NEVER gets logged out.
  */
 export async function getSiteSession(slug: string) {
   try {
     const cookieStore = await cookies();
-    const session = await getIronSession<SessionUser>(cookieStore, sessionOptions);
+    const session = await getIronSession<SessionUser>(cookieStore, siteSessionOptions(slug));
     if (!session.userId || session.siteSlug !== slug) return null;
+    // Slide: renew the 30-day expiry on every active use
+    await session.save();
     return session;
   } catch {
     return null;
@@ -37,4 +41,4 @@ export async function requireSiteAuth(slug: string) {
   return { ok: true as const, session };
 }
 
-export { sessionOptions };
+export { sessionOptions, siteSessionOptions };

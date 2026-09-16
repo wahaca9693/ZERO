@@ -77,14 +77,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     if (!loaded.site) return json({ error: "الموقع غير موجود" }, { status: 404 });
     const siteId = Number(loaded.site.id);
 
-    // Get branch provider API key
+    // Get branch provider API key + markup
     const providerResult = await db.execute({
-      sql: "SELECT api_key, owner_user_id FROM branch_providers WHERE site_id = ? AND is_active = 1 LIMIT 1",
+      sql: "SELECT api_key, owner_user_id, markup_percent FROM branch_providers WHERE site_id = ? AND is_active = 1 LIMIT 1",
       args: [siteId],
     });
     const providerRow = providerResult.rows[0] as unknown as Record<string, unknown> | undefined;
     const apiKey = providerRow?.api_key ? String(providerRow.api_key) : null;
     const ownerUserId = providerRow?.owner_user_id ? Number(providerRow.owner_user_id) : 0;
+    const providerMarkup = Number(providerRow?.markup_percent || 0);
 
     if (!apiKey) {
       return json({ error: "لم يتم ربط مفتاح API للمنصة بعد — اذهب لإعدادات المزود" }, { status: 400 });
@@ -117,26 +118,40 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     if (qty < min || qty > max) return json({ error: `الكمية يجب أن تكون بين ${min} و ${max}` }, { status: 400 });
 
     const sellRate = providerService.sell_rate != null ? Number(providerService.sell_rate) : Number(providerService.rate);
+    // سعر التكلفة (ما يدفعه المالك للمزود)
     const cost = (sellRate * qty) / 1000;
-    if (!Number.isFinite(cost) || cost < 0) return json({ error: "سعر الخدمة غير صالح" }, { status: 500 });
+    // سعر البيع للمستخدم = التكلفة × (1 + نسبة ربح الفرع/100)
+    const markupFactor = 1 + providerMarkup / 100;
+    const userCharge = cost * markupFactor;
+    if (!Number.isFinite(cost) || cost < 0 || !Number.isFinite(userCharge) || userCharge < 0) return json({ error: "سعر الخدمة غير صالح" }, { status: 500 });
 
-    // Deduct from official wallet (owner)
+    // خصم من محفظة مستخدم الفرع بسعر البيع (المضاعف)
+    const userDebit = await db.execute({
+      sql: "UPDATE reseller_accounts SET balance = balance - ? WHERE id = ? AND balance >= ?",
+      args: [userCharge, accountId, userCharge],
+    });
+    if (Number(userDebit.rowsAffected || 0) !== 1) {
+      return json({ error: "رصيدك غير كافٍ" }, { status: 409 });
+    }
+
+    // خصم من محفظة المالك الرسمي بالسعر الأصلي (التكلفة فقط)
     if (ownerUserId <= 0) return json({ error: "لا يوجد مالك رسمي مرتبط" }, { status: 400 });
     const ownerDebit = await db.execute({
       sql: "UPDATE users SET balance = balance - ? WHERE id = ? AND balance >= ?",
       args: [cost, ownerUserId, cost],
     });
     if (Number(ownerDebit.rowsAffected || 0) !== 1) {
+      await db.execute({ sql: "UPDATE reseller_accounts SET balance = balance + ? WHERE id = ?", args: [userCharge, accountId] });
       return json({ error: "رصيد المالك الرسمي غير كافٍ" }, { status: 409 });
     }
 
-    // Record branch order
+    // Record branch order — يُسجل سعر البيع للمستخدم (userCharge)
     let localOrderId: number | null = null;
     try {
       const orderResult = await db.execute({
         sql: `INSERT INTO reseller_orders (site_id, account_id, service_id, service_name, link, quantity, charge, status, provider_id, idempotency_key)
               VALUES (?, ?, ?, ?, ?, ?, ?, 'processing', ?, ?)`,
-        args: [siteId, accountId, Number(providerService.id), String(providerService.name), String(link), qty, cost, Number(providerService.provider_id), idempotencyKey || null],
+        args: [siteId, accountId, Number(providerService.id), String(providerService.name), String(link), qty, userCharge, Number(providerService.provider_id), idempotencyKey || null],
       });
       localOrderId = Number(orderResult.lastInsertRowid);
 
@@ -146,6 +161,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       });
     } catch (error) {
       await db.execute({ sql: "UPDATE users SET balance = balance + ? WHERE id = ?", args: [cost, ownerUserId] });
+      await db.execute({ sql: "UPDATE reseller_accounts SET balance = balance + ? WHERE id = ?", args: [userCharge, accountId] });
       throw error;
     }
 
@@ -172,6 +188,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
     if (!providerRes.ok || !providerData) {
       await db.execute({ sql: "UPDATE users SET balance = balance + ? WHERE id = ?", args: [cost, ownerUserId] });
+      await db.execute({ sql: "UPDATE reseller_accounts SET balance = balance + ? WHERE id = ?", args: [userCharge, accountId] });
       await db.execute({ sql: "UPDATE reseller_orders SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [localOrderId] });
       return json({ error: `فشل إنشاء الطلب لدى المزود` }, { status: 502 });
     }
@@ -179,6 +196,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     const remoteOrderId = String(providerData.order || providerData.order_id || providerData.id || "");
     if (!remoteOrderId) {
       await db.execute({ sql: "UPDATE users SET balance = balance + ? WHERE id = ?", args: [cost, ownerUserId] });
+      await db.execute({ sql: "UPDATE reseller_accounts SET balance = balance + ? WHERE id = ?", args: [userCharge, accountId] });
       await db.execute({ sql: "UPDATE reseller_orders SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [localOrderId] });
       return json({ error: "فشل إنشاء الطلب: لم يتم إرجاع رقم الطلب" }, { status: 502 });
     }
@@ -195,7 +213,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     await db.execute({
       sql: `INSERT INTO reseller_transactions (site_id, account_id, type, amount, status, description)
             VALUES (?, ?, 'order', ?, 'completed', ?)`,
-      args: [siteId, accountId, cost, `طلب #${localOrderId} — ${String(providerService.name)}`],
+      args: [siteId, accountId, userCharge, `طلب #${localOrderId} — ${String(providerService.name)}`],
     });
 
     return json({
@@ -206,7 +224,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
         service_name: providerService.name,
         link,
         quantity: qty,
-        charge: cost,
+        charge: userCharge,
         status: "processing",
       },
     });

@@ -1,19 +1,20 @@
 import { cookies } from "next/headers";
 import { db, initDb } from "./db";
-import { sessionOptions, type SessionUser } from "./session-config";
+import { sessionOptions, siteSessionOptions, type SessionUser } from "./session-config";
 import { getIronSession } from "iron-session";
 
 /**
  * Unified reseller session helpers.
  *
- * All branch auth (register/login/me) stores the session in the SAME
- * iron-session cookie (`reseller_session`) with fields:
+ * All branch auth (register/login/me) stores the session in a SITE-SPECIFIC
+ * iron-session cookie (`reseller_session_<slug>`) with fields:
  *   userId   -> reseller_accounts.id
  *   siteSlug -> the branch slug
  *   role     -> "admin" | "user"
  *
  * requireResellerAccount / requireResellerAdmin read THAT same session so
- * branch admins never hit "غير مصرح" after login.
+ * branch admins never hit "غير مصرح" after login. Each branch has its own
+ * cookie — logging in/out of one branch never affects another.
  */
 
 interface ResellerAccountRow {
@@ -28,7 +29,7 @@ interface ResellerAccountRow {
 
 export async function requireResellerAccount(slug: string, requiredRole?: "admin" | "user") {
   const cookieStore = await cookies();
-  const session = await getIronSession<SessionUser>(cookieStore, sessionOptions);
+  const session = await getIronSession<SessionUser>(cookieStore, siteSessionOptions(slug));
   if (!session.userId || typeof session.userId !== "number" || session.siteSlug !== slug) {
     throw new Error("Unauthorized");
   }

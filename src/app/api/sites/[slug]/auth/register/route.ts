@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { db, initDb } from "@/lib/db";
 import { loadPublicSite } from "@/lib/reseller-sites";
-import { sessionOptions, type SessionUser } from "@/lib/session";
+import { sessionOptions, siteSessionOptions, type SessionUser } from "@/lib/session";
 import bcrypt from "bcryptjs";
 import { getIronSession } from "iron-session";
 
@@ -42,7 +42,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
       if (newUser) {
         const cookieStore = await cookies();
-        const session = await getIronSession<SessionUser>(cookieStore, sessionOptions);
+        const session = await getIronSession<SessionUser>(cookieStore, siteSessionOptions(slug));
         session.userId = newUser.id;
         session.siteSlug = slug;
         session.role = newUser.role;

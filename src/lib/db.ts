@@ -846,6 +846,18 @@ const schemaMigrations: SchemaMigration[] = [
       ["last_2fa_verified_at", "DATETIME"],
     ],
   },
+  {
+    table: "branch_providers",
+    columns: [
+      ["markup_percent", "REAL DEFAULT 0"],
+    ],
+  },
+  {
+    table: "branch_provider_services",
+    columns: [
+      ["markup_percent", "REAL DEFAULT 0"],
+    ],
+  },
 ];
 
 async function executeSchemaBatch() {

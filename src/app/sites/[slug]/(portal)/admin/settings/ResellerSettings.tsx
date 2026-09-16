@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Plus, Save, Trash2, Check, CreditCard, Palette } from "lucide-react";
+import { Loader2, Plus, Save, Trash2, Check, CreditCard, Palette, TrendingUp } from "lucide-react";
 
 type Props = { slug: string; siteName: string };
 
@@ -15,6 +15,7 @@ export default function ResellerSettingsPage({ slug, siteName }: Props) {
 
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [theme, setTheme] = useState<Record<string, unknown>>({});
+  const [markup, setMarkup] = useState<number | "">("");
 
   useEffect(() => {
     const load = async () => {
@@ -23,6 +24,7 @@ export default function ResellerSettingsPage({ slug, siteName }: Props) {
         const data = await res.json();
         if (data.paymentMethods) setMethods(data.paymentMethods);
         if (data.theme) setTheme(data.theme);
+        if (typeof data.markupPercent === "number") setMarkup(data.markupPercent);
       } catch {}
       finally { setLoading(false); }
     };
@@ -36,7 +38,7 @@ export default function ResellerSettingsPage({ slug, siteName }: Props) {
       const res = await fetch(`${base}/admin/settings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme, paymentMethods: methods }),
+        body: JSON.stringify({ theme, paymentMethods: methods, markupPercent: markup === "" ? 0 : Number(markup) }),
       });
       const data = await res.json();
       if (data.success) setMessage({ text: "تم حفظ الإعدادات بنجاح" });
@@ -110,6 +112,33 @@ export default function ResellerSettingsPage({ slug, siteName }: Props) {
           placeholder="اسم الموقع (مثال: متجري للخدمات)"
           className="w-full rounded-xl border border-white/10 bg-[#0d0d0d] px-4 py-3 text-sm text-white outline-none focus:border-violet-500/40"
         />
+      </section>
+
+      {/* Profit markup */}
+      <section className="rounded-3xl border border-white/5 bg-white/[0.03] p-5">
+        <div className="mb-4 flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-400"><TrendingUp size={18} /></span>
+          <div>
+            <h2 className="font-black text-white">نسبة الربح (الهامش)</h2>
+            <p className="text-xs text-zinc-500">تُضاف على جميع أسعار الخدمات — تظهر للمستخدمين فقط، والخصم يبقى بالسعر الأصلي</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <input
+            type="number"
+            min={0}
+            max={10000}
+            step={0.5}
+            value={markup === "" ? "" : String(markup)}
+            onChange={(e) => setMarkup(e.target.value === "" ? "" : Number(e.target.value))}
+            placeholder="مثال: 10 = زيادة 10%، 50 = زيادة 50%، 150 = زيادة 150%"
+            className="w-full rounded-xl border border-white/10 bg-[#0d0d0d] px-4 py-3 text-sm text-white outline-none focus:border-amber-500/40"
+          />
+          <span className="shrink-0 rounded-xl bg-white/5 px-3 py-3 text-sm font-black text-amber-400">%</span>
+        </div>
+        <p className="mt-2 text-xs text-zinc-500">
+          مثال: خدمة سعرها الأصلي 1.00$ — بنسبة 50% تصبح 1.50$ للمستخدم، وأنت تدفع للمزود 1.00$ فقط.
+        </p>
       </section>
 
       {message && (
