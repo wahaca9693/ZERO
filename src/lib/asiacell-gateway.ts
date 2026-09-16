@@ -268,6 +268,29 @@ export async function adminLogin(phone: string): Promise<{ success: boolean; mes
   return { success: true, message: stringField(data, "message") || "تم إرسال رمز التحقق" };
 }
 
+export async function adminVerify(otp: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  const admin = await getAdminRow();
+  if (!admin) return { success: false, error: "قم بتسجيل الدخول أولاً" };
+
+  const { json: data } = await retryAsiacellFetch(
+    `${AC_API}/api/v1/smsvalidation?lang=ar`,
+    { method: "POST", body: JSON.stringify({ PID: admin.pid, passcode: otp }) },
+    loginHeaders(admin.device_id)
+  );
+
+  if (!data) {
+    debugAsiacell("Admin verification returned non-JSON response");
+    return { success: false, error: "رد غير متوقع من Asiacell" };
+  }
+
+  const accessToken = stringField(data, "access_token");
+  if (accessToken) {
+    await setAdminRow({ access_token: accessToken, authenticated: 1 });
+    return { success: true, message: "تم ربط البوابة بنجاح" };
+  }
+  return { success: false, message: stringField(data, "message") || "رمز التحقق غير صحيح" };
+}
+
 /**
  * نسخة adminLogin خاصة بفرع (reseller site): تحفظ في reseller_asiacell_admin
  * بدل الجدول العام حتى لا تتعارض الفروع مع بعضها.
