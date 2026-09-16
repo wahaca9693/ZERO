@@ -170,11 +170,18 @@ export async function loadServiceCatalog(): Promise<CatalogService[]> {
   if (catalogInFlight?.generation === generation) return catalogInFlight.promise;
 
   const load = (async (): Promise<CatalogService[]> => {
-    const [followerResult, providerResult] = await Promise.all([
-      getServices(20_000).catch(() => [] as JsonRecord[]),
-      loadProviderCatalog().catch(() => [] as CatalogService[]),
-    ]);
+    const providerCatalog = await loadProviderCatalog().catch(() => [] as CatalogService[]);
+    // إذا كان هناك مزودون محليون مفعّلون بخدمات، نعتمد عليهم فقط ولا نخلط مع مصدر follower القديم
+    // (هذا يضمن أن أسعار البيع (sell_rate) بنسبة الربح هي الظاهرة تمامًا)
+    if (providerCatalog.length > 0) {
+      const payload = providerCatalog;
+      if (catalogGeneration === generation && payload.length > 0) {
+        catalogCache = { at: Date.now(), payload };
+      }
+      return payload;
+    }
 
+    const followerResult = await getServices(20_000).catch(() => [] as JsonRecord[]);
     const catalog: CatalogService[] = [];
   for (const item of followerResult) {
     const service = asRecord(item);
@@ -197,7 +204,7 @@ export async function loadServiceCatalog(): Promise<CatalogService[]> {
     });
   }
 
-    const payload = [...catalog, ...providerResult];
+    const payload = catalog;
     if (catalogGeneration === generation && payload.length > 0) {
       catalogCache = { at: Date.now(), payload };
     }
