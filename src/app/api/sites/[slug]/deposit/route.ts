@@ -58,14 +58,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     };
 
     // بوابات العملات الرقمية
-    const themeData = JSON.parse(String(loaded.site.theme_json || "{}"));
-    const gateways = JSON.parse(String(themeData.gateways || "{}"));
-    const cryptoWallets: CryptoWallet[] = Array.isArray(gateways.cryptoWallets) ? gateways.cryptoWallets.filter((w: CryptoWallet) => w.enabled && w.address && w.visible !== false) : [];
+    let cryptoWallets: CryptoWallet[] = [];
+    try {
+      const themeData = JSON.parse(String(loaded.site.theme_json || "{}"));
+      const gateways = JSON.parse(String(themeData.gateways || "{}"));
+      cryptoWallets = Array.isArray(gateways.cryptoWallets) ? gateways.cryptoWallets.filter((w: CryptoWallet) => w.enabled && w.address && w.visible !== false) : [];
+    } catch {
+      cryptoWallets = [];
+    }
 
     return NextResponse.json({ paymentMethods: enabled, asiacell, cryptoWallets });
   } catch (error) {
-    console.error("[site-deposit]", error);
-    return NextResponse.json({ error: "تعذر تحميل طرق الدفع" }, { status: 500 });
+    console.error("[site-deposit]", error instanceof Error ? error.stack || error.message : error);
+    return NextResponse.json({ error: "تعذر تحميل طرق الدفع", details: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
