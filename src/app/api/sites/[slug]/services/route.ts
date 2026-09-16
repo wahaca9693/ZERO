@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, initDb } from "@/lib/db";
-import { requireResellerAdmin } from "@/lib/reseller-auth";
+import { loadPublicSite } from "@/lib/reseller-sites";
 import { loadServiceCatalog, getPublicServiceId } from "@/lib/service-catalog";
 import { defaultPlatformOptions, detectPlatform, detectServiceType, normalizePlatformId, platformOption } from "@/lib/platform-mapping";
 import { publicCatalogPlatform, type CatalogPlatform } from "@/lib/catalog-platform";
@@ -43,15 +43,16 @@ export async function GET(_request: Request, { params }: Params) {
   try {
     const { slug } = await params;
     await initDb();
-    const auth = await requireResellerAdmin(slug);
-    const siteId = Number(auth.account.site_id);
+    const loaded = await loadPublicSite(slug);
+    if (!loaded.site) return NextResponse.json({ error: "الموقع غير موجود" }, { status: 404 });
+    const siteId = Number(loaded.site.id);
 
     // Get all active providers for this site (with their markup)
     const provResult = await db.execute({
-      sql: "SELECT id, name, markup_percent FROM branch_providers WHERE site_id = ? AND is_active = 1 ORDER BY id",
+      sql: "SELECT id, name, api_key, markup_percent FROM branch_providers WHERE site_id = ? AND is_active = 1 ORDER BY id",
       args: [siteId],
     });
-    const providers = provResult.rows as unknown as Array<{ id: number; name: string; markup_percent?: number | null }>;
+    const providers = provResult.rows as unknown as Array<{ id: number; name: string; api_key?: string | null; markup_percent?: number | null }>;
 
     // If no active providers: fallback to main official catalog
     if (providers.length === 0) {
@@ -81,9 +82,10 @@ export async function GET(_request: Request, { params }: Params) {
     for (const prov of providers) {
       const markup = Number(prov.markup_percent || 0);
       const markupFactor = 1 + markup / 100;
+      // نجلب الخدمات من provider_services الرسمية (الكتالوج الكامل) لأن branch_provider_services
+      // مرتبطة بمزودات الفروع القديمة؛ نطابقها عبر remote_service_id
       const svcResult = await db.execute({
-        sql: "SELECT remote_service_id, name, name_ar, description, rate, min, max, category, type FROM branch_provider_services WHERE provider_id = ? AND is_hidden = 0 ORDER BY category, name",
-        args: [prov.id],
+        sql: "SELECT remote_service_id, name, name_ar, description, rate, min, max, category, type FROM provider_services WHERE is_active = 1 ORDER BY category, name",
       });
       const rows = svcResult.rows as unknown as Array<Record<string, unknown>>;
       for (const row of rows) {
@@ -108,6 +110,7 @@ export async function GET(_request: Request, { params }: Params) {
           is_new: false,
         });
       }
+      break; // كل الفروع تستخدم نفس الكتالوج الرسمي
     }
 
     const categories = Array.from(new Set(allServices.map((s) => String(s.category)).filter(Boolean)));
