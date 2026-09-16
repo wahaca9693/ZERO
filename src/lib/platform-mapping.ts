@@ -17,7 +17,7 @@ const platformKeywords: Record<string, string[]> = {
   instagram: ["instagram", "انستغرام", "انستقرام", "insta"],
   youtube: ["youtube", "يوتيوب", "يوتوب", "yt"],
   twitter: ["twitter", "تويتر", "x / twitter", "x/twitter"],
-  telegram: ["telegram", "تيليجرام", "تلجرام"],
+  telegram: ["telegram", "تيليجرام", "تلجرام", "تلغرام", "مشتركين-تليجرام", "اشتراك-تليجرام", "مشتركين-تلجرام"],
   whatsapp: ["whatsapp", "واتساب", "واتس"],
   snapchat: ["snapchat", "snap chat", "سناب شات", "سناب جات", "سناب"],
   discord: [  "discord", "ديسكورد"],
