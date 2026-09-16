@@ -23,7 +23,7 @@ function errorMessage(error: unknown): string {
 }
 
 type PaymentMethod = { name: string; instructions: string; enabled: boolean };
-type CryptoWallet = { coin: string; network: string; address: string; enabled: boolean };
+type CryptoWallet = { coin: string; network: string; address: string; enabled: boolean; visible?: boolean };
 
 const origin = process.env.NEXT_PUBLIC_APP_URL || "";
 
@@ -60,7 +60,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     // بوابات العملات الرقمية
     const themeData = JSON.parse(String(loaded.site.theme_json || "{}"));
     const gateways = JSON.parse(String(themeData.gateways || "{}"));
-    const cryptoWallets: CryptoWallet[] = Array.isArray(gateways.cryptoWallets) ? gateways.cryptoWallets.filter((w: CryptoWallet) => w.enabled && w.address) : [];
+    const cryptoWallets: CryptoWallet[] = Array.isArray(gateways.cryptoWallets) ? gateways.cryptoWallets.filter((w: CryptoWallet) => w.enabled && w.address && w.visible !== false) : [];
 
     return NextResponse.json({ paymentMethods: enabled, asiacell, cryptoWallets });
   } catch (error) {

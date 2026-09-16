@@ -5,7 +5,7 @@ import { Copy, Check, Loader2, Wallet, Landmark, Smartphone, ArrowDownToLine, Za
 
 type Props = { slug: string; siteName: string };
 type PaymentMethod = { name: string; instructions: string; enabled: boolean };
-type CryptoWallet = { coin: string; network: string; address: string; enabled: boolean };
+type CryptoWallet = { coin: string; network: string; address: string; enabled: boolean; visible?: boolean };
 type AsiacellState = { connected: boolean; admin_connected: boolean; store_phone: string; exchange_rate: number };
 
 const coinMeta: Record<string, { color: string; label: string }> = {

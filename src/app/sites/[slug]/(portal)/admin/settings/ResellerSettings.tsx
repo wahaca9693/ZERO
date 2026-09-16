@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Plus, Save, Trash2, Check, CreditCard, Palette, TrendingUp, Zap, Coins, Wallet, ArrowDownToLine, Settings2 } from "lucide-react";
+import { Loader2, Plus, Save, Trash2, Check, CreditCard, Palette, TrendingUp, Zap, Coins, Wallet, ArrowDownToLine, Settings2, Eye, EyeOff } from "lucide-react";
 type Props = { slug: string; siteName: string };
 type PaymentMethod = { name: string; instructions: string; enabled: boolean };
-type CryptoWallet = { coin: string; network: string; address: string; enabled: boolean };
+type CryptoWallet = { coin: string; network: string; address: string; enabled: boolean; visible?: boolean };
 type AsiacellConfig = { storePhone: string; exchangeRate: number; enabled: boolean };
 
 export default function ResellerSettingsPage({ slug, siteName }: Props) {
@@ -105,7 +105,7 @@ export default function ResellerSettingsPage({ slug, siteName }: Props) {
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-400"><Coins size={18} /></span>
             <div>
               <h2 className="font-black text-white">بوابات العملات الرقمية</h2>
-              <p className="text-xs text-zinc-500">USDT / BNB / BTC — التحقق التلقائي عبر OKX</p>
+              <p className="text-xs text-zinc-500">USDT / BNB / BTC — التحقق التلقائي عبر OKX. أيقونة العين: إخفاء/إظهار العملة من صفحة الشحن الخاصة بالعملاء.</p>
             </div>
           </div>
           <button onClick={addCrypto} className="flex items-center gap-1 rounded-xl bg-amber-500/15 px-3 py-2 text-xs font-black text-amber-400 hover:bg-amber-500/25">
@@ -128,6 +128,9 @@ export default function ResellerSettingsPage({ slug, siteName }: Props) {
               <label className="flex items-center gap-1 text-xs text-zinc-400">
                 <input type="checkbox" checked={w.enabled} onChange={e => updateCrypto(i, "enabled", e.target.checked)} /> مفعلة
               </label>
+              <button onClick={() => updateCrypto(i, "visible", w.visible === false)} title={w.visible === false ? "إظهار للعملاء" : "إخفاء من العملاء"} className={`rounded-lg px-2 py-2 ${w.visible === false ? "bg-red-500/10 text-red-300 hover:bg-red-500/20" : "bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"}`}>
+                {w.visible === false ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
               <button onClick={() => setCryptoWallets(p => p.filter((_, idx) => idx !== i))} className="rounded-lg bg-red-500/10 px-2 py-2 text-red-300 hover:bg-red-500/20"><Trash2 size={14} /></button>
             </div>
           ))}

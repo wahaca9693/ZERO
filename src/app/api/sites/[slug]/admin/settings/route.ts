@@ -3,7 +3,7 @@ import { db, initDb } from "@/lib/db";
 import { requireResellerAdmin } from "@/lib/reseller-auth";
 type Params = { params: Promise<{ slug: string }> };
 type PaymentMethod = { name: string; instructions: string; enabled: boolean };
-type CryptoWallet = { coin: string; network: string; address: string; enabled: boolean };
+type CryptoWallet = { coin: string; network: string; address: string; enabled: boolean; visible?: boolean };
 type AsiacellConfig = { storePhone: string; exchangeRate: number; enabled: boolean };
 
 export async function GET(_request: Request, { params }: Params) {
