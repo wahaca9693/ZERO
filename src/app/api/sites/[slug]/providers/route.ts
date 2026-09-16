@@ -59,7 +59,6 @@ async function checkKeyOwnership(key: string, currentUserId: number): Promise<{ 
 
 // --- Main Provider API ---
 type Params = { params: Promise<{ slug: string }> };
-const DEFAULT_ENDPOINT = "https://www.follower4.zone.id/api/v2";
 
 type ProviderRow = {
   id: number;
