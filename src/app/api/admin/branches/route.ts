@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, message: "تم فتح الفرع وعاد للعمل بشكل طبيعي", status: "active" });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "";
-    const status = message === "Unauthorized" ? 401 : message === "Forbidden" ? 403 : 500;
+    const status = message === "Unauthorized" ? 401 : (message === "Forbidden" || message.includes("2FA")) ? 403 : 500;
     return NextResponse.json({
       error: status === 401 ? "يرجى تسجيل الدخول" : status === 403 ? "غير مصرح" : "تعذر تنفيذ العملية",
     }, { status });

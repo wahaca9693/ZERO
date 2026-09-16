@@ -95,7 +95,9 @@ export async function GET() {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     if (message === "Unauthorized") return NextResponse.json({ error: "يرجى تسجيل الدخول" }, { status: 401 });
-    if (message === "Forbidden") return NextResponse.json({ error: "غير مصرح — صلاحية الأدمن مطلوبة" }, { status: 403 });
+    if (message === "Forbidden" || message === "2FA_REQUIRED" || message.includes("2FA")) {
+      return NextResponse.json({ error: "غير مصرح — صلاحية الأدمن مطلوبة أو يتطلب التحقق بخطوتين" }, { status: 403 });
+    }
     console.error("[admin-sites]", error);
     return NextResponse.json({ error: `تعذر تحميل المواقع: ${message}` }, { status: 500 });
   }
