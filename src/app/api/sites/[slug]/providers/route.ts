@@ -58,7 +58,6 @@ async function checkKeyOwnership(key: string, currentUserId: number): Promise<{ 
 }
 
 // --- Main Provider API ---
-type Params = { params: Promise<{ slug: string }> };
 
 type ProviderRow = {
   id: number;
@@ -189,14 +188,17 @@ export async function POST(request: Request, { params }: Params) {
     }
 
     const ownershipCheck = await checkKeyOwnership(keyValidation.normalized!, currentUserId);
-    if (!ownershipCheck.ok) {
-      return NextResponse.json({ error: ownershipCheck.error, connected: false }, { status: 403 });
+    if (!ownershipCheck.ok || ownershipCheck.ownerId === undefined) {
+      return NextResponse.json({ error: ownershipCheck.error || "فشل التحقق من ملكية المفتاح", connected: false }, { status: 403 });
     }
 
     const endpoint = (api_endpoint || DEFAULT_ENDPOINT).trim();
+    const normalizedKey = keyValidation.normalized!;
+    const ownerId = ownershipCheck.ownerId;
+    
     const insert = await db.execute({
       sql: "INSERT INTO branch_providers (site_id, name, api_endpoint, api_key, owner_user_id) VALUES (?, ?, ?, ?, ?)",
-      args: [siteId, name.trim(), endpoint, keyValidation.normalized!, ownershipCheck.ownerId],
+      args: [siteId, name.trim(), endpoint, normalizedKey, ownerId],
     });
     const providerId = Number(insert.lastInsertRowid);
 
