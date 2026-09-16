@@ -42,7 +42,7 @@ export default function ResellerLoginForm({ slug, siteName, logoUrl, primary, se
     try {
       const response = await fetch(`/api/sites/${encodeURIComponent(slug)}/auth/${registerMode ? "register" : "login"}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim(), email: email.trim().toLowerCase(), password, termsAccepted }),
+        body: JSON.stringify({ username: username.trim().toLowerCase(), email: email.trim().toLowerCase(), password, termsAccepted }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "تعذر إتمام العملية");
