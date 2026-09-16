@@ -170,8 +170,10 @@ export function normalizePlatformId(value: string): string {
 
 function knownPlatformFromText(text: string): string | null {
   const normalized = normalizeText(text);
+  // توحيد المسافات/الشرطات/التسطير — ليتعرف على كل متغيرات الإملاء مهما كتبها المزود
+  const compact = normalized.replace(/[\s_-]+/g, "-");
   for (const [platform, keywords] of Object.entries(platformKeywords)) {
-    if (keywords.some((keyword) => normalized.includes(normalizeText(keyword)))) return platform;
+    if (keywords.some((keyword) => compact.includes(normalizeText(keyword).replace(/[\s_-]+/g, "-")))) return platform;
   }
   return null;
 }
