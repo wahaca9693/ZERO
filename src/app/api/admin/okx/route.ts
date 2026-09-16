@@ -90,7 +90,7 @@ export async function POST(request: Request) {
     if (message === "Account banned") return json({ error: "حساب Admin محظور حاليًا." }, 403);
     if (error instanceof OkxConfigurationError) return json({ error: "أدخل API Key وSecret Key وPassphrase صحيحة، أو أضف INTEGRATION_SECRETS_KEY في Vercel أولًا." }, 400);
     if (error instanceof OkxRequestError) {
-      const detail = error.code === "50101" ? "بيانات اعتماد OKX غير صحيحة." : error.code === "50102" ? "وقت خادم التطبيق غير متزامن مع OKX." : error.code === "50103" ? "صلاحية API لا تسمح بهذا الطلب." : "تحقق من المفتاح والصلاحيات والـPassphrase والـIP whitelist وعنوان REST الإقليمي.";
+      const detail = error.code === "50101" ? "بيانات اعتماد OKX غير صحيحة." : error.code === "50102" ? "وقت خادم التطبيق غير متزامن مع OKX." : error.code === "50103" ? "صلاحية API لا تسمح بهذا الطلب." : error.code === "50111" ? "الـ Passphrase غير صحيح." : error.code === "50110" ? "الـ API Key غير صحيح أو محذوف." : error.code === "50004" ? "العنوان IP غير مصرح به (IP whitelist)." : `تحقق من المفتاح والصلاحيات والـPassphrase والـIP whitelist وعنوان REST الإقليمي. (رمز: ${error.code || "غير معروف"})`;
       return json({ error: `فشل اختبار القراءة من OKX: ${detail}` }, 502);
     }
     console.error("Admin OKX configuration failed", error instanceof Error ? error.name : "UnknownError");
