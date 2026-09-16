@@ -2,8 +2,42 @@ import { NextResponse } from "next/server";
 import { db, initDb } from "@/lib/db";
 import { requireResellerAdmin } from "@/lib/reseller-auth";
 import { loadServiceCatalog, getPublicServiceId } from "@/lib/service-catalog";
+import { defaultPlatformOptions, detectPlatform, detectServiceType, normalizePlatformId, platformOption } from "@/lib/platform-mapping";
+import { publicCatalogPlatform, type CatalogPlatform } from "@/lib/catalog-platform";
 
 type Params = { params: Promise<{ slug: string }> };
+
+function buildPlatformOptions(customPlatforms: CatalogPlatform[]) {
+  const legacyPlatforms = defaultPlatformOptions.filter((platform) => platform.id !== "all");
+  const customIds = new Set(customPlatforms.map((platform) => platform.id));
+  return [
+    { ...platformOption("all"), color: "var(--color-primary)" },
+    ...legacyPlatforms.filter((platform) => !customIds.has(platform.id)),
+    ...customPlatforms.map((platform) => ({
+      id: platform.id,
+      name: platform.label_ar,
+      nameAr: platform.label_ar,
+      nameEn: platform.label_en,
+      descriptionAr: platform.description_ar,
+      descriptionEn: platform.description_en,
+      logoUrl: platform.logo_url,
+      serviceIds: platform.service_ids,
+      color: "var(--color-primary)",
+      count: platform.service_ids.length,
+    })),
+  ];
+}
+
+async function getCustomPlatforms(): Promise<CatalogPlatform[]> {
+  const result = await db.execute(`
+    SELECT id, label_ar, label_en, description_ar, description_en, logo_url,
+           service_ids, is_active, sort_order
+    FROM catalog_platform_buttons
+    WHERE is_active = 1
+    ORDER BY sort_order, id
+  `);
+  return result.rows.map((row) => publicCatalogPlatform(row as Record<string, unknown>));
+}
 
 export async function GET(_request: Request, { params }: Params) {
   try {
@@ -33,12 +67,13 @@ export async function GET(_request: Request, { params }: Params) {
         rate: service.rate,
         min: service.min,
         max: service.max,
-        platform: service.category,
-        serviceType: service.type,
+        platform: normalizePlatformId(detectPlatform(service.category, service.name)),
+        serviceType: detectServiceType(service.name),
         is_new: false,
       }));
       const categories = Array.from(new Set(services.map((s: { category?: string }) => s.category || "").filter(Boolean)));
-      return NextResponse.json({ services, categories, count: services.length });
+      const customPlatforms = await getCustomPlatforms().catch(() => [] as CatalogPlatform[]);
+      return NextResponse.json({ services, categories, platforms: buildPlatformOptions(customPlatforms), count: services.length });
     }
 
     // Collect services from all active providers (not hidden)
@@ -50,26 +85,35 @@ export async function GET(_request: Request, { params }: Params) {
       });
       const rows = svcResult.rows as unknown as Array<Record<string, unknown>>;
       for (const row of rows) {
+        const name = String(row.name || "");
+        const category = String(row.category || "");
         allServices.push({
           service: String(row.remote_service_id),
-          name: String(row.name),
-          nameAr: String(row.name_ar || row.name),
+          name,
+          nameAr: String(row.name_ar || row.name || ""),
           description: String(row.description || ""),
           descriptionAr: String(row.description_ar || row.description || ""),
-          category: String(row.category),
-          categoryAr: String(row.category),
+          category,
+          categoryAr: category,
           rate: Number(row.rate),
           min: Number(row.min),
           max: Number(row.max),
-          platform: String(row.category),
-          serviceType: String(row.type || "service"),
+          // المنصة تُشتق تلقائياً من اسم الخدمة وفئتها — تماماً مثل المنصة الرسمية
+          platform: normalizePlatformId(detectPlatform(category, name)),
+          serviceType: detectServiceType(name),
           is_new: false,
         });
       }
     }
 
     const categories = Array.from(new Set(allServices.map((s) => String(s.category)).filter(Boolean)));
-    return NextResponse.json({ services: allServices, categories, count: allServices.length });
+    const customPlatforms = await getCustomPlatforms().catch(() => [] as CatalogPlatform[]);
+    return NextResponse.json({
+      services: allServices,
+      categories,
+      platforms: buildPlatformOptions(customPlatforms),
+      count: allServices.length,
+    });
   } catch (error) {
     console.error("[branch-services]", error);
     return NextResponse.json({ error: "تعذر تحميل الخدمات" }, { status: 500 });
