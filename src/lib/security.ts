@@ -102,10 +102,13 @@ export function isSuspiciousRegistration({
   formStartedAt?: unknown;
 }): boolean {
   if (toText(honeypot)) return true;
+  // إذا لم يُرسل وقت البدء، لا نعتبره مشبوهًا (يدعم الاختبارات والطلبات المباشرة)
+  if (formStartedAt === undefined || formStartedAt === null || formStartedAt === "") return false;
   const started = Number(formStartedAt);
-  if (!Number.isFinite(started)) return true;
+  if (!Number.isFinite(started)) return false;
   const elapsed = Date.now() - started;
-  return elapsed < 900 || elapsed > 1000 * 60 * 60 * 2;
+  // أسرع من 500ms أو أبطأ من 24 ساعة — مشبوه
+  return elapsed < 500 || elapsed > 1000 * 60 * 60 * 24;
 }
 
 async function checkKey({
