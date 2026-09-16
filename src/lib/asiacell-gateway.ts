@@ -624,7 +624,7 @@ export async function startTransfer(
   const session = await getCustomerSession(sessionId);
   if (!session || !session.access_token) return { success: false, error: "الجلسة منتهية أو لم يتم التحقق" };
 
-  const storePhone = admin?.store_phone || admin?.phone;
+  const storePhone = cleanPhone(admin?.store_phone || admin?.phone || "");
   if (!storePhone) return { success: false, error: "رقم المتجر غير مضبوط - تواصل مع الإدارة" };
 
   if (!amountIQD || amountIQD < 250) return { success: false, error: "الحد الأدنى للتحويل 250 د.ع" };

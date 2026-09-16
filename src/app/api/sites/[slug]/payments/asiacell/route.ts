@@ -3,7 +3,7 @@ import { db, initDb } from "@/lib/db";
 import { loadPublicSite } from "@/lib/reseller-sites";
 import { requireSiteAuth } from "@/lib/session";
 import {
-  getAdminRow,
+  type AdminSession,
   customerLogin,
   customerVerify,
   topupCard,
@@ -67,10 +67,33 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     const userSession = auth.session;
     const body: CustomerActionBody = await request.json();
     const action = body.action;
-    const admin = await getAdminRow();
+
+    // Per-site Asiacell admin row: store phone + exchange rate for THIS branch
+    const loaded = await loadPublicSite(slug);
+    const siteId = loaded.site ? Number(loaded.site.id) : 0;
+    let admin: AdminSession | null = null;
+    if (siteId) {
+      const siteAdmin = await db.execute({
+        sql: "SELECT * FROM reseller_asiacell_admin WHERE site_id = ? LIMIT 1",
+        args: [siteId],
+      });
+      const srow = siteAdmin.rows[0] as unknown as Record<string, unknown> | undefined;
+      if (srow) {
+        admin = {
+          ...(srow as unknown as AdminSession),
+          id: Number(srow.id),
+          authenticated: Number(srow.authenticated),
+          exchange_rate: Number(srow.exchange_rate),
+          store_phone: srow.store_phone ? String(srow.store_phone) : "",
+          phone: srow.phone ? String(srow.phone) : "",
+          device_id: srow.device_id ? String(srow.device_id) : "",
+          access_token: srow.access_token ? String(srow.access_token) : "",
+          pid: srow.pid ? String(srow.pid) : "",
+        } as AdminSession;
+      }
+    }
 
     // Site-targeted credit: resolve site+account for branch deposits
-    const loaded = await loadPublicSite(slug);
     const siteTarget = loaded.site
       ? { siteId: Number(loaded.site.id), accountId: userSession.userId! }
       : null;

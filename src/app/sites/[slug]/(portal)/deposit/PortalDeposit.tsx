@@ -190,6 +190,11 @@ export default function PortalDeposit({ slug, siteName }: Props) {
               <div><label className="mb-1 block text-xs font-bold text-zinc-400">تحويل رصيد (د.ع)</label>
                 <input value={asiAmount} onChange={e => setAsiAmount(e.target.value)} placeholder="مثال: 5000" dir="ltr" type="number" className="w-full rounded-xl border border-white/10 bg-[#0d1a14] px-4 py-3 text-white outline-none focus:border-emerald-500/50" />
                 {asiacell.exchange_rate ? <p className="mt-1 text-[11px] text-zinc-500">سعر الصرف: {asiacell.exchange_rate.toLocaleString("ar-IQ")} د.ع = 1$</p> : null}
+                {Number(asiAmount) > 0 && asiacell.exchange_rate ? (
+                  <p className="mt-1 rounded-lg bg-emerald-500/10 px-3 py-2 text-sm font-black text-emerald-300">
+                    ≈ {((Number(asiAmount) / asiacell.exchange_rate) || 0).toFixed(4)} $ <span className="text-[11px] font-bold text-emerald-400/70">تُضاف لرصيدك</span>
+                  </p>
+                ) : null}
                 <button onClick={asiTransfer} disabled={asiLoading} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-2.5 text-sm font-black text-[#111] disabled:opacity-50">بدء التحويل</button>
               </div>
               <div><label className="mb-1 block text-xs font-bold text-zinc-400">رمز التأكيد من آسياسيل</label>
