@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import DashboardLayout from "@/components/DashboardLayout";
+import DashboardLayout from "@/app/components/DashboardLayout";
 import { Coins, ArrowLeft, CheckCircle2, XCircle, Wallet, Hourglass, BadgeCheck, Coins as CoinsIcon, Copy, Loader2, Zap, Clock } from "lucide-react";
 
 type Props = { slug: string; siteName: string };
