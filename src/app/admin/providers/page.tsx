@@ -1350,9 +1350,12 @@ export default function ProvidersPage() {
                     />
                     <span className="text-[11px] text-zinc-400">لإضافة خدمات جديدة بهامش، أدخل النسبة ثم اختر «إضافة الكل»؛ ولا تُطبَّق تلقائيًا قبل ذلك.</span>
                     <button
-                      onClick={() => {
-                        const p = providers.find(pr => Number(pr.is_active) === 1);
-                        if (p) updateAllProviderServices(p.id, "markup", String(globalMarkup), "provider");
+                      onClick={async () => {
+                        const activeProviders = providers.filter(pr => Number(pr.is_active) === 1);
+                        if (activeProviders.length === 0) return;
+                        for (const p of activeProviders) {
+                          await updateAllProviderServices(p.id, "markup", String(globalMarkup), "provider");
+                        }
                       }}
                       disabled={globalMarkup <= 0 || providers.filter(pr => Number(pr.is_active) === 1).length === 0}
                       className="flex h-9 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 text-[12px] font-black text-black shadow-[0_0_16px_-6px_rgba(16,185,129,0.5)] transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
