@@ -22,6 +22,21 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unexpected error";
 }
 
+/**
+ * يقرأ كائن gateways من theme بأمان — يقبل json كنص أو ككائن جاهز.
+ * (بعد JSON.parse للثيم، gateways قد يكون نصًا أو كائنًا تبعًا للبيانات المخزنة.)
+ */
+function parseGateways(themeData: unknown): Record<string, unknown> {
+  try {
+    if (!themeData) return {};
+    if (typeof themeData === "string") return JSON.parse(themeData) as Record<string, unknown>;
+    if (typeof themeData === "object") return themeData as Record<string, unknown>;
+    return {};
+  } catch {
+    return {};
+  }
+}
+
 type PaymentMethod = { name: string; instructions: string; enabled: boolean };
 type CryptoWallet = { coin: string; network: string; address: string; enabled: boolean; visible?: boolean };
 
@@ -60,8 +75,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     // بوابات العملات الرقمية
     let cryptoWallets: CryptoWallet[] = [];
     try {
-      const themeData = JSON.parse(String(loaded.site.theme_json || "{}"));
-      const gateways = JSON.parse(String(themeData.gateways || "{}"));
+      const themeData = JSON.parse(String(loaded.site.theme_json || "{}")) as Record<string, unknown>;
+      const gateways = parseGateways(themeData.gateways);
       cryptoWallets = Array.isArray(gateways.cryptoWallets) ? gateways.cryptoWallets.filter((w: CryptoWallet) => w.enabled && w.address && w.visible !== false) : [];
     } catch {
       cryptoWallets = [];
@@ -145,7 +160,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
       // جلب عنوان المحفظة من إعدادات الفرع
       const themeData = loaded2.site ? JSON.parse(String((loaded2.site as Record<string, unknown>).theme_json || "{}")) : {};
-      const gateways = JSON.parse(String(themeData.gateways || "{}"));
+      const gateways = parseGateways(themeData.gateways);
       const wallets: CryptoWallet[] = Array.isArray(gateways.cryptoWallets) ? gateways.cryptoWallets : [];
       const wallet = wallets.find((w) => w.coin === coin && w.network === network && w.enabled && w.address);
       if (!wallet) return NextResponse.json({ error: "بوابة الكريبتو غير مفعلة لهذا الشبكة" }, { status: 400 });

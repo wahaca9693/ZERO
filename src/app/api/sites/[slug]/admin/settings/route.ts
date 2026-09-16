@@ -43,7 +43,7 @@ export async function GET(_request: Request, { params }: Params) {
     };
 
     // الكريبتو: يُقرأ من theme_json.gateways
-    const gateways = JSON.parse(String(theme.gateways || "{}"));
+    const gateways = typeof theme.gateways === "string" ? JSON.parse(theme.gateways || "{}") : (theme.gateways || {});
     const cryptoWallets: CryptoWallet[] = Array.isArray(gateways.cryptoWallets) ? gateways.cryptoWallets : [];
 
     return NextResponse.json({
@@ -102,7 +102,7 @@ export async function POST(request: Request, { params }: Params) {
 
     // حفظ بوابات الكريبتو في theme_json.gateways
     if (cryptoWallets !== undefined) {
-      const gateways = JSON.parse(String(mergedTheme.gateways || "{}"));
+      const gateways = typeof mergedTheme.gateways === "string" ? JSON.parse(mergedTheme.gateways || "{}") : (mergedTheme.gateways || {});
       gateways.cryptoWallets = cryptoWallets;
       mergedTheme.gateways = gateways;
     }
