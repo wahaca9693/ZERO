@@ -33,10 +33,11 @@ export default function PortalDeposit({ slug, siteName }: Props) {
   // آسياسيل
   const [asiPhone, setAsiPhone] = useState("");
   const [asiOtp, setAsiOtp] = useState("");
+  const [asiTransferOtp, setAsiTransferOtp] = useState("");
   const [asiVoucher, setAsiVoucher] = useState("");
   const [asiAmount, setAsiAmount] = useState("");
   const [asiSession, setAsiSession] = useState<string | null>(null);
-  const [asiStep, setAsiStep] = useState<"idle" | "otp" | "ready">("idle");
+  const [asiStep, setAsiStep] = useState<"idle" | "otp" | "ready" | "confirm">("idle");
   const [asiLoading, setAsiLoading] = useState(false);
   const [asiMsg, setAsiMsg] = useState<string | null>(null);
   const [asiErr, setAsiErr] = useState<string | null>(null);
@@ -85,23 +86,25 @@ export default function PortalDeposit({ slug, siteName }: Props) {
   const asiVerify = async () => {
     if (!asiSession || !asiOtp.trim()) { setAsiErr("أدخل رمز التحقق"); return; }
     const data = await callAsi({ action: "asiacell-verify-otp", sessionId: asiSession, otp: asiOtp.trim() });
-    if (data?.success) { setAsiStep("ready"); setAsiMsg("تم التحقق! يمكنك الشحن الآن"); }
+    if (data?.success) { setAsiOtp(""); setAsiStep("ready"); setAsiMsg("تم التحقق! يمكنك الشحن الآن"); }
   };
   const asiTopup = async () => {
     if (!asiVoucher.trim()) { setAsiErr("أدخل رقم كرت الشحن"); return; }
-    await callAsi({ action: "asiacell-topup", sessionId: asiSession, voucher: asiVoucher.trim() });
+    const data = await callAsi({ action: "asiacell-topup", sessionId: asiSession, voucher: asiVoucher.trim() });
+    if (data?.success) { resetAsi(); setAsiMsg(`تم الشحن بنجاح — تمت إضافة ${Number(data.credited || 0).toFixed(4)} دولار إلى محفظتك`); void refresh(); }
   };
   const asiTransfer = async () => {
     const amt = Number(asiAmount);
-    if (!amt || amt < 250) { setAsiErr("الحد الأدنى 250 د.ع"); return; }
+    if (!Number.isSafeInteger(amt) || amt < 1000 || amt % 1000 !== 0) { setAsiErr("مبلغ التحويل يجب أن يكون 1000 د.ع أو مضاعفاته"); return; }
     const data = await callAsi({ action: "asiacell-transfer", sessionId: asiSession, amount: amt });
-    if (data?.success) { setAsiStep("ready"); setAsiMsg("أدخل رمز التأكيد المرسل من آسياسيل"); }
+    if (data?.success) { setAsiTransferOtp(""); setAsiStep("confirm"); setAsiMsg("أدخل رمز التأكيد الثاني المرسل من آسياسيل"); }
   };
   const asiConfirm = async () => {
-    if (!asiOtp.trim()) { setAsiErr("أدخل رمز التأكيد"); return; }
-    await callAsi({ action: "asiacell-confirm", sessionId: asiSession, otp: asiOtp.trim() });
+    if (!asiSession || !asiTransferOtp.trim()) { setAsiErr("أدخل رمز التأكيد الثاني"); return; }
+    const data = await callAsi({ action: "asiacell-confirm", sessionId: asiSession, otp: asiTransferOtp.trim() });
+    if (data?.success) { resetAsi(); setAsiMsg(`تم الشحن بنجاح — تمت إضافة ${Number(data.credited || 0).toFixed(4)} دولار إلى محفظتك`); void refresh(); }
   };
-  const resetAsi = () => { setAsiSession(null); setAsiPhone(""); setAsiOtp(""); setAsiVoucher(""); setAsiAmount(""); setAsiStep("idle"); setAsiMsg(null); setAsiErr(null); };
+  const resetAsi = () => { setAsiSession(null); setAsiPhone(""); setAsiOtp(""); setAsiTransferOtp(""); setAsiVoucher(""); setAsiAmount(""); setAsiStep("idle"); setAsiMsg(null); setAsiErr(null); };
 
   // ── كريبتو ──
   const submitCrypto = async () => {
@@ -160,7 +163,7 @@ export default function PortalDeposit({ slug, siteName }: Props) {
           <div className="mb-4 flex items-center gap-3">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-400"><Zap size={22} /></span>
             <div className="flex-1"><p className="font-black text-white">شحن تلقائي عبر آسياسيل</p><p className="text-xs text-zinc-400">شحن كرت أو تحويل فوري — يضاف الرصيد تلقائيًا</p></div>
-            <button onClick={resetAsi} className="rounded-lg bg-white/5 p-2 text-zinc-400 hover:bg-white/10"><RefreshCw size={15} /></button>
+            <button type="button" disabled={asiLoading} onClick={() => { if (asiStep === "confirm" && !window.confirm("بدء نموذج جديد لا يلغي تحويلاً سابقاً. إذا انخصم رصيدك لا تعيد الدفع. هل تريد تغيير الرقم؟")) return; resetAsi(); }} className="rounded-lg bg-white/5 p-2 text-xs text-zinc-400 hover:bg-white/10 disabled:opacity-50">تغيير الرقم / تحويل جديد</button>
           </div>
           {/* الخطوة 1: رقم الهاتف */}
           {!asiSession && asiStep === "idle" && (
@@ -188,7 +191,7 @@ export default function PortalDeposit({ slug, siteName }: Props) {
               </div>
               <div className="flex items-center gap-3 text-xs text-zinc-500"><span className="h-px flex-1 bg-white/10" />أو<span className="h-px flex-1 bg-white/10" /></div>
               <div><label className="mb-1 block text-xs font-bold text-zinc-400">تحويل رصيد (د.ع)</label>
-                <input value={asiAmount} onChange={e => setAsiAmount(e.target.value)} placeholder="مثال: 5000" dir="ltr" type="number" className="w-full rounded-xl border border-white/10 bg-[#0d1a14] px-4 py-3 text-white outline-none focus:border-emerald-500/50" />
+                <input value={asiAmount} onChange={e => setAsiAmount(e.target.value)} placeholder="مثال: 1000" dir="ltr" type="number" min="1000" step="1000" className="w-full rounded-xl border border-white/10 bg-[#0d1a14] px-4 py-3 text-white outline-none focus:border-emerald-500/50" />
                 {asiacell.exchange_rate ? <p className="mt-1 text-[11px] text-zinc-500">سعر الصرف: {asiacell.exchange_rate.toLocaleString("ar-IQ")} د.ع = 1$</p> : null}
                 {Number(asiAmount) > 0 && asiacell.exchange_rate ? (
                   <p className="mt-1 rounded-lg bg-emerald-500/10 px-3 py-2 text-sm font-black text-emerald-300">
@@ -197,8 +200,13 @@ export default function PortalDeposit({ slug, siteName }: Props) {
                 ) : null}
                 <button onClick={asiTransfer} disabled={asiLoading} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-2.5 text-sm font-black text-[#111] disabled:opacity-50">بدء التحويل</button>
               </div>
-              <div><label className="mb-1 block text-xs font-bold text-zinc-400">رمز التأكيد من آسياسيل</label>
-                <input value={asiOtp} onChange={e => setAsiOtp(e.target.value)} placeholder="أدخل رمز التأكيد" dir="ltr" className="w-full rounded-xl border border-white/10 bg-[#0d1a14] px-4 py-3 text-white outline-none focus:border-emerald-500/50" />
+            </div>
+          )}
+          {asiStep === "confirm" && (
+            <div className="space-y-4">
+              <p className="text-sm text-emerald-300">صافي التحويل: {Number(asiAmount).toLocaleString("ar-IQ")} د.ع — الرسم منفصل عن مبلغ التحويل. سيضاف ≈ {(Number(asiAmount) / asiacell.exchange_rate).toFixed(4)} دولار بعد النجاح.</p>
+              <div><label className="mb-1 block text-xs font-bold text-zinc-400">رمز التأكيد الثاني من آسياسيل</label>
+                <input value={asiTransferOtp} onChange={e => setAsiTransferOtp(e.target.value.replace(/[^0-9]/g, ""))} autoComplete="one-time-code" inputMode="numeric" placeholder="أدخل رمز التأكيد الثاني" dir="ltr" className="w-full rounded-xl border border-white/10 bg-[#0d1a14] px-4 py-3 text-white outline-none focus:border-emerald-500/50" />
                 <button onClick={asiConfirm} disabled={asiLoading} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-2.5 text-sm font-black text-[#111] disabled:opacity-50">تأكيد التحويل</button>
                 <button onClick={() => callAsi({ action: "asiacell-resend", sessionId: asiSession })} disabled={asiLoading} className="mt-1 w-full text-center text-xs font-bold text-emerald-400/80">إعادة إرسال رمز التأكيد</button>
               </div>
