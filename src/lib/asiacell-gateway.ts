@@ -630,13 +630,15 @@ export async function startTransfer(
   const storePhone = cleanPhone(admin?.store_phone || admin?.phone || "");
   if (!storePhone) return { success: false, error: "رقم المتجر غير مضبوط - تواصل مع الإدارة" };
 
-  if (!amountIQD || amountIQD < 250) return { success: false, error: "الحد الأدنى للتحويل 250 د.ع" };
+  if (!Number.isSafeInteger(amountIQD) || amountIQD < 1000 || amountIQD % 1000 !== 0) {
+    return { success: false, error: "مبلغ التحويل يجب أن يكون 1000 د.ع أو مضاعفاته" };
+  }
 
   const transferFeeIQD = ASIACELL_TRANSFER_FEE_IQD;
   const totalTransferIQD = amountIQD + transferFeeIQD;
   const { json: data } = await retryAsiacellFetch(
     `${AC_API}/api/v1/credit-transfer/start?lang=ar`,
-    { method: "POST", body: JSON.stringify({ amount: totalTransferIQD, receiverMsisdn: storePhone }) },
+    { method: "POST", body: JSON.stringify({ amount: amountIQD, receiverMsisdn: storePhone }) },
     authHeaders(session.device_id, session.access_token)
   );
 
