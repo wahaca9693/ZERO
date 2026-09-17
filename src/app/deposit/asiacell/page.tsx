@@ -92,32 +92,28 @@ export default function AsiacellDepositPage() {
   };
 
   useEffect(() => {
-    const stored = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
-    const restoreTimer = window.setTimeout(() => {
-      // وضع البطاقة مستقل تمامًا عن جلسة الهاتف؛ لا نستعيد جلسة تحويل محفوظة هنا.
-      if (initialMode === "card") {
-        setMode("card");
-        setStep(1);
-        setSessionId("");
-        setPhone("");
-        setOtp("");
-        setTransferOtp("");
-        setTransferAmount("");
-      } else if (stored) {
-        try {
-          const saved = JSON.parse(stored) as { sessionId?: string; phone?: string; mode?: Mode; step?: number; transferAmount?: string };
-          if (saved.sessionId && saved.step && saved.step >= 2 && saved.step <= 4) {
-            setSessionId(saved.sessionId);
-            setPhone(saved.phone || "");
-            setMode("transfer");
-            setStep(saved.step);
-            setTransferAmount(saved.transferAmount || "");
-          }
-        } catch {
-          window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
-        }
-      }
-    }, 0);
+    // A new visit starts a new form, never an old OTP confirmation.
+    // This clears browser state only, not server-side payment records.
+    const startFresh = () => {
+      try { window.sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch {}
+      setMode(initialMode);
+      setStep(1);
+      setSessionId("");
+      setPhone("");
+      setOtp("");
+      setTransferOtp("");
+      setVoucher("");
+      setTransferAmount("");
+      setCredited(0);
+      setCreditedIqd(0);
+      setMessage("");
+      setLoading(false);
+    };
+    const restoreTimer = window.setTimeout(startFresh, 0);
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) startFresh();
+    };
+    window.addEventListener("pageshow", onPageShow);
 
     fetch("/api/payments/asiacell", { cache: "no-store", credentials: "include" })
       .then((response) => response.json())
@@ -127,7 +123,10 @@ export default function AsiacellDepositPage() {
       })
       .catch(() => setGatewayStatus({}));
 
-    return () => window.clearTimeout(restoreTimer);
+    return () => {
+      window.clearTimeout(restoreTimer);
+      window.removeEventListener("pageshow", onPageShow);
+    };
   }, [initialMode]);
 
   const callGateway = async (action: string, payload: Record<string, string | number>) => {
@@ -317,6 +316,8 @@ export default function AsiacellDepositPage() {
 
         <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-xl sm:p-6">{renderStepper()}
           {message && <div className={`mt-4 rounded-xl p-3 text-center text-xs font-bold ${isErrorText(message) ? "bg-red-500/10 text-red-300" : "bg-emerald-500/10 text-emerald-300"}`}>{message}</div>}
+
+          {step > 1 && step < 5 && <div className="mt-4 space-y-2"><button type="button" disabled={loading} onClick={() => { if (step === 4 && !window.confirm("بدء نموذج جديد لا يلغي تحويلاً أُرسل لأسياسيل. إذا ضغطت تأكيد الدفع أو انخصم رصيدك، تحقق من العملية السابقة قبل دفع جديد. هل تريد تغيير الرقم؟")) return; resetFlow(); }} className="w-full rounded-xl border border-[var(--color-border)] py-2 text-xs text-zinc-300 disabled:opacity-50">تغيير الرقم / تحويل جديد</button><p className="text-center text-[10px] text-amber-300">بدء نموذج جديد لا يلغي عملية دفع سابقة. إذا انخصم رصيدك لا تعيد الدفع.</p></div>}
 
           {step === 1 && mode === "transfer" && <form onSubmit={login} className="mt-5 space-y-4"><div><h2 className="text-lg font-black text-white">رقم آسياسيل الخاص بك</h2><p className="mt-1 text-xs text-zinc-500">سنرسل رمز تحقق لمرة واحدة إلى رقمك قبل أي عملية شحن.</p></div><label className="block"><span className="mb-1.5 block text-xs font-bold text-zinc-400">رقم الهاتف</span><div className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3"><span className="font-mono text-xs font-black text-[var(--color-primary)]">+964</span><input type="tel" inputMode="numeric" autoComplete="tel" value={phone} onChange={(event) => setPhone(normalizePhone(event.target.value))} placeholder="07XXXXXXXXX" className="w-full bg-transparent py-3 text-left font-mono text-sm text-white outline-none placeholder:text-zinc-700" dir="ltr" /></div></label><button type="submit" disabled={loading || !gatewayAvailable} className={actionClass}>{loading ? <Loader2 size={17} className="animate-spin" /> : <Smartphone size={17} />}إرسال رمز التحقق</button></form>}
 
