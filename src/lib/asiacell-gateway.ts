@@ -163,7 +163,10 @@ export async function retryAsiacellFetch(
 ): Promise<AsiacellResponse> {
   let result = await asiacellFetch(url, options, headers);
 
-  if (!result.json) {
+  // An ambiguous response does not prove a payment was rejected.
+  // Retry reads only; never automatically replay a financial mutation.
+  const method = (options.method || "GET").toUpperCase();
+  if (!result.json && (method === "GET" || method === "HEAD")) {
     debugAsiacell("Non-JSON response; retrying without Host header");
     const retryHeaders = { ...headers };
     delete retryHeaders.Host;

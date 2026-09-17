@@ -66,6 +66,13 @@ export async function POST(request: Request) {
       if (!/^07\d{9}$/.test(phone)) {
         return NextResponse.json({ error: "رقم آسياسيل يجب أن يكون 07XXXXXXXXX" }, { status: 400 });
       }
+      const admin = await getAdminRow();
+      if (!admin?.authenticated || !admin.access_token || cleanPhone(admin.phone || "") !== phone) {
+        return NextResponse.json({
+          error: "رقم الاستلام يحتاج تحققاً: اربط هذا الرقم برمز التحقق أولاً ثم احفظه كرقم المتجر.",
+          requiresVerification: true,
+        }, { status: 409 });
+      }
       await setAdminRow({ store_phone: phone });
       return NextResponse.json({ success: true, store_phone: phone });
     }
